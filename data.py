@@ -1,5 +1,6 @@
 import datetime
 import pandas as pd
+import numpy as np
 from event import MarketEvent
 
 
@@ -46,94 +47,91 @@ class HistoricCSVDataHandler(DataHandler):
 
         self._open_convert_csv_files()
 
+    def _open_convert_csv_files(self):
+        """
+        Using CSV and converting to DataFrames. Assume format is Yahoo, so [Date (YYYY/MM/DD), Open, High, Low, Close, Adj Close, Volume]
+        """
+        comb_index = None  # ?
+        for symbol in self.symbol_list:
+            self.symbol_data[symbol] = pd.read_csv(
+                f"{self.csv_dir}/{symbol.upper()}.csv",
+                header=0,
+                index_col=0,
+                parse_dates=True,
+                names=[
+                    "datetime",
+                    "open",
+                    "high",
+                    "low",
+                    "close",
+                    "adj_close",
+                    "volume",
+                ],
+            )
+            self.symbol_data[symbol].sort_index(inplace=True)
 
-def _open_convert_csv_files(self):
-    """
-    Using CSV and converting to DataFrames. Assume format is Yahoo, so [Date (YYYY/MM/DD), Open, High, Low, Close, Adj Close, Volume]
-    """
-    comb_index = None  # ?
-    for symbol in self.symbol_list:
-        self.symbol_data[symbol] = pd.read_csv(
-            f"../data/yahoo/{symbol.upper()}",
-            header=0,
-            index_col=0,
-            parse_dates=True,
-            names=["datetime", "open", "high", "low", "close", "adj_close", "volume"],
-        )
-        self.symbol_data[symbol].sort_index(inplace=True)
+            # ?what if market times are not the same. In principle, the cleaned data should not contain empty bars, so this will likely be deleted in the future.
 
-        # ?what if market times are not the same. In principle, the cleaned data should not contain empty bars, so this will likely be deleted in the future.
+            # Combine indexes of all symbols to get all dates and times that are traded
+            if comb_index is None:
+                comb_index = self.symbol_data[symbol].index
+            else:
+                comb_index.union(self.symbol_data[symbol].index)
 
-        # Combine indexes of all symbols to get all dates and times that are traded
-        if comb_index is None:
-            comb_index = self.symbol_data[symbol].index
-        else:
-            comb_index.union(self.symbol_data[symbol].index)
+            self.latest_symbol_data[symbol] = []
 
-        self.latest_symbol_data[symbol] = []
+        for symbol in self.symbol_list:
+            # For the symbols that do not have timestamps that other symbols do, do a forward fill
+            self.symbol_data[symbol] = self.symbol_data[symbol].reindex(
+                index=comb_index, method="pad"
+            )
+            self.symbol_data[symbol]["returns"] = (
+                self.symbol_data[symbol]["adj_close"].pct_change().dropna()
+            )
+            self.symbol_data[symbol] = self.symbol_data[
+                symbol
+            ].iterrows()  # symbol_data now contain iterators
 
-    for symbol in self.symbol_list:
-        # For the symbols that do not have timestamps that other symbols do, do a forward fill
-        self.symbol_data[symbol] = self.symbol_data[symbol].reindex(
-            index=comb_index, method="pad"
-        )
-        self.symbol_data[symbol]["returns"] = (
-            self.symbol_data[symbol]["adj_close"].pct_change().dropna()
-        )
-        self.symbol_data[symbol] = self.symbol_data[
-            symbol
-        ].iterrows()  # symbol_data now contain iterators
+    def _get_new_bar(self, symbol):
+        # A bar is a TUPLE of (Timestamp, Series), where Series is OHLC
+        for bar in self.symbol_data[symbol]:
+            yield bar
 
-    for symbol in self.symbol_list:
-        # ?Why do we have to do this a second time?
-        self.symbol_data[symbol] = (
-            self.symbol_data[symbol].reindex(index=comb_index, method="pad").iterrows()
-        )
-
-
-def _get_new_bar(self, symbol):
-    """
-    Returns iterator of
-    (symbol, datetime, open, high, low, close, volume)
-    """
-    for b in self.symbol_data[symbol]:
-        yield tuple(
-            [
-                symbol,
-                datetime.datetime.strptime(b[0], "%Y-%m-%d %H:%M:%S"),
-                b[1][0],
-                b[1][1],
-                b[1][2],
-                b[1][3],
-                b[1][4],
-            ]
-        )
-
-
-def get_latest_bars(self, symbol, N=1):
-    """
-    returns latest N bars
-    """
-    try:
+    def get_latest_bar_value(self, symbol, val_type):
         bars_list = self.latest_symbol_data[symbol]
-    except KeyError:
-        print("Symbol does not exist")
-    else:
-        return bars_list[-N:]
+        return bars_list[-1][1][val_type]
 
+    def get_latest_bar_values(self, symbol, val_type, N=1):
+        bars_list = self.get_latest_bars(symbol, N)
+        return [bar[1][val_type] for bar in bars_list]
 
-def update_bars(self):
-    """
-    Put MarketEvent()
-    Put latest data in latest_symbol_data
-    With real data this would be where a get request is done with the broker API.
-    """
-    for symbol in self.symbol_list:
+    def get_latest_bar_datetime(self, symbol):
+        bars_list = self.latest_symbol_data[symbol]
+        return bars_list[-1][0]  # Get datetime of last bar, TimeStamp object
+
+    def get_latest_bars(self, symbol, N=1):
+        """
+        returns latest N bars
+        """
         try:
-            bar = self._get_new_bar(symbol).next()
-        except StopIteration:
-            self.continue_backtest = False
+            bars_list = self.latest_symbol_data[symbol]
+        except KeyError:
+            print("Symbol does not exist")
         else:
-            if bar is not None:
-                self.latest_symbol_data[symbol].append(bar)
-    self.events.put(MarketEvent())
+            return bars_list[-N:]
+
+    def update_bars(self):
+        """
+        Put MarketEvent()
+        Put latest data in latest_symbol_data
+        With real data this would be where a get request is done with the broker API.
+        """
+        for symbol in self.symbol_list:
+            try:
+                bar = next(self._get_new_bar(symbol))
+            except StopIteration:
+                self.continue_backtest = False
+            else:
+                if bar is not None:
+                    self.latest_symbol_data[symbol].append(bar)
+        self.events.put(MarketEvent())

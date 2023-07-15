@@ -12,7 +12,6 @@ PRIVATE_KEY = "7vPfnRccMoxd65oKJ9Zij9dwRgqGJIJqPUA82lpk"
 class AlpacaExecutionHandler(ExecutionHandler):
     def __init__(self, events):
         self.events = events
-        # self.fill_dict = {} #To avoid duplicate orders
         self.order_id = self.create_initial_order_id()
         self.register_handlers()
 
@@ -23,4 +22,5 @@ class AlpacaExecutionHandler(ExecutionHandler):
 
     def create_fill(self, *args):
         # If fill_order, create FillEvent
+
         pass

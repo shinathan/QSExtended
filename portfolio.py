@@ -62,7 +62,7 @@ class NaivePortfolio(Portfolio):
     def update_timeindex(self, event):
         # "MarketEvent -> update logs"
         # current_positions is the only things that stays the same without FillEvents. So that is why we use it to calculate the other stuff.
-
+        latest_datetime = self.bars.get_latest_bar_datetime(self.symbol_list[0])
         # Get current bar
         bars = {}
         for symbol in self.symbol_list:
@@ -70,7 +70,7 @@ class NaivePortfolio(Portfolio):
 
         # Update positions
         dp = {symbol: 0 for symbol in self.symbol_list}  # Intialize positions
-        dp["datetime"] = bars[self.symbol_list[0]][0][1]  # Get most recent timestamp
+        dp["datetime"] = latest_datetime
         for symbol in self.symbol_list:
             dp[symbol] = self.current_positions[symbol]  # Set positions
 
@@ -79,15 +79,15 @@ class NaivePortfolio(Portfolio):
 
         # Update holdings
         dh = {symbol: 0 for symbol in self.symbol_list}  # Initialize holdings
-        dh["datetime"] = bars[self.symbol_list[0]][0][1]  # Get most recent timestamp
+        dh["datetime"] = latest_datetime
         dh["cash"] = self.current_holdings["cash"]
         dh["commission"] = self.current_holdings["commission"]
         dh["total"] = self.current_holdings["cash"]
 
         for symbol in self.symbol_list:
-            market_value = (
-                self.current_positions[symbol] * bars[symbol][0][5]
-            )  # Index 5 = close, we use numpy instead of Series because of speed
+            market_value = self.current_positions[
+                symbol
+            ] * self.bars.get_latest_bar_value(symbol, "close")
             dh[symbol] = market_value
             dh["total"] += market_value
 
@@ -115,7 +115,7 @@ class NaivePortfolio(Portfolio):
         else:
             raise Exception("Incorrect fill direction")
 
-        fill_cost = self.bars.get_latest_bars(fill.symbol)[0][5]
+        fill_cost = self.bars.get_latest_bar_value(fill.symbol, "close")
         cost = fill_dir * fill_cost * fill.quantity
         self.current_holdings[fill.symbol] += cost
         self.current_holdings["commission"] += fill.commission
@@ -157,9 +157,13 @@ class NaivePortfolio(Portfolio):
         all_holdings is [{h1, h2, ...}] where
         h1 = {AAPL, MSFT, datetime, cash, commission, total}
         """
-        curve = pd.DataFrame(
-            self.all_holdings, index_col="datetime", usecols=["datetime", "total"]
-        )
+        curve = pd.DataFrame(self.all_holdings)
+        curve.set_index("datetime", inplace=True)
         curve["returns"] = curve["total"].pct_change()
         curve["equity_curve"] = (1.0 + curve["returns"]).cumprod()
         self.equity_curve = curve  # df of datetime: returns, equity_curve
+
+    def output_summary_stats(self):
+        total_return = self.equity_curve["equity_curve"][-1]
+
+        return total_return
