@@ -1,0 +1,26 @@
+import datetime
+import time
+
+from event import FillEvent, OrderEvent
+from execution import ExecutionHandler
+
+ENDPOINT = "https://paper-api.alpaca.markets"
+PUBLIC_KEY = "PKSZODW85JHSHOBRE8IY"
+PRIVATE_KEY = "7vPfnRccMoxd65oKJ9Zij9dwRgqGJIJqPUA82lpk"
+
+
+class AlpacaExecutionHandler(ExecutionHandler):
+    def __init__(self, events):
+        self.events = events
+        # self.fill_dict = {} #To avoid duplicate orders
+        self.order_id = self.create_initial_order_id()
+        self.register_handlers()
+
+    def execute_order(self, event):
+        if event.type == "ORDER":
+            # Logic for order creation
+            pass
+
+    def create_fill(self, *args):
+        # If fill_order, create FillEvent
+        pass

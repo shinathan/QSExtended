@@ -1,0 +1,165 @@
+import datetime
+import numpy as np
+import pandas as pd
+import queue
+
+from math import floor
+from event import FillEvent, OrderEvent
+
+
+class Portfolio:
+    # ?This logic should be delegated to strategy, like in QC
+    def update_signal(self, event):
+        # SignalEvent -> OrderEvent
+        raise NotImplementedError()
+
+    def update_fill(self, event):
+        # FillEvent -> update internals
+        raise NotImplementedError()
+
+
+class NaivePortfolio(Portfolio):
+    def __init__(self, bars, events, start_date, initial_capital=100000.0):
+        self.bars = bars
+        self.events = events
+        self.symbol_list = self.bars.symbol_list
+        self.start_date = start_date
+        self.initial_capital = initial_capital
+
+        self.all_positions = (
+            self.construct_all_positions()
+        )  # Dict of all historic positions ('AAPL', 5)
+        self.current_positions = {
+            symbol: 0 for symbol in self.symbol_list
+        }  # Initialize current positions
+
+        self.all_holdings = self.construct_all_holdings()
+        self.current_holdings = self.construct_current_holdings()
+
+    # Initialize is better word
+    def construct_all_positions(self):
+        d = {symbol: 0 for symbol in self.symbol_list}
+        d["datetime"] = self.start_date
+        return [d]  # ? A dict with dates is maybe better
+
+    def construct_all_holdings(self):
+        d = {symbol: 0 for symbol in self.symbol_list}
+        d["datetime"] = self.start_date
+        d["cash"] = self.initial_capital
+        d["commission"] = 0.0
+        d["total"] = self.initial_capital
+        return [d]
+
+    # Cant we just get this from all_holdings?
+    def construct_current_holdings(self):
+        d = {symbol: 0 for symbol in self.symbol_list}
+        d["datetime"] = self.start_date
+        d["cash"] = self.initial_capital
+        d["commission"] = 0.0
+        d["total"] = self.initial_capital
+        return d
+
+    def update_timeindex(self, event):
+        # "MarketEvent -> update logs"
+        # current_positions is the only things that stays the same without FillEvents. So that is why we use it to calculate the other stuff.
+
+        # Get current bar
+        bars = {}
+        for symbol in self.symbol_list:
+            bars[symbol] = self.bars.get_latest_bars(symbol)
+
+        # Update positions
+        dp = {symbol: 0 for symbol in self.symbol_list}  # Intialize positions
+        dp["datetime"] = bars[self.symbol_list[0]][0][1]  # Get most recent timestamp
+        for symbol in self.symbol_list:
+            dp[symbol] = self.current_positions[symbol]  # Set positions
+
+        # Append current positions to ALL positions
+        self.all_positions.append(dp)
+
+        # Update holdings
+        dh = {symbol: 0 for symbol in self.symbol_list}  # Initialize holdings
+        dh["datetime"] = bars[self.symbol_list[0]][0][1]  # Get most recent timestamp
+        dh["cash"] = self.current_holdings["cash"]
+        dh["commission"] = self.current_holdings["commission"]
+        dh["total"] = self.current_holdings["cash"]
+
+        for symbol in self.symbol_list:
+            market_value = (
+                self.current_positions[symbol] * bars[symbol][0][5]
+            )  # Index 5 = close, we use numpy instead of Series because of speed
+            dh[symbol] = market_value
+            dh["total"] += market_value
+
+        # Append current holdings to ALL holdings
+        self.all_holdings.append(dh)
+
+    def update_positions_from_fill(self, fill):
+        # FillEvent -> update current positions
+        fill_dir = 0
+        if fill.direction == "BUY":
+            fill_dir = 1
+        elif fill.direction == "SELL":
+            fill_dir = -1
+        else:
+            raise Exception("Incorrect fill direction")
+
+        self.current_positions[fill.symbol] += fill_dir * fill.quantity
+
+    def update_holdings_from_fill(self, fill):
+        # FillEvent -> update current holdings
+        if fill.direction == "BUY":
+            fill_dir = 1
+        elif fill.direction == "SELL":
+            fill_dir = -1
+        else:
+            raise Exception("Incorrect fill direction")
+
+        fill_cost = self.bars.get_latest_bars(fill.symbol)[0][5]
+        cost = fill_dir * fill_cost * fill.quantity
+        self.current_holdings[fill.symbol] += cost
+        self.current_holdings["commission"] += fill.commission
+        self.current_holdings["cash"] -= cost + fill.commission
+        self.current_holdings["total"] -= cost + fill.commission
+
+    def update_fill(self, event):
+        # Does the update holdings and update positions
+        if event.type == "FILL":
+            self.update_positions_from_fill(event)
+            self.update_holdings_from_fill(event)
+
+    def generate_naive_order(self, signal):
+        # SignalEvent -> OrderEvent
+        order = None
+        symbol = signal.symbol
+        direction = signal.signal_type
+
+        cur_quantity = self.current_positions[symbol]
+        order_type = "MKT"
+
+        if direction == "LONG" and cur_quantity == 0:
+            order = OrderEvent(symbol, order_type, 100, "BUY")
+        elif direction == "SHORT" and cur_quantity == 0:
+            order = OrderEvent(symbol, order_type, 100, "SELL")
+        elif direction == "EXIT" and cur_quantity > 0:
+            order = OrderEvent(symbol, order_type, abs(cur_quantity), "SELL")
+        elif direction == "EXIT" and cur_quantity < 0:
+            order = OrderEvent(symbol, order_type, abs(cur_quantity), "BUY")
+        return order
+
+    def update_signal(self, event):
+        if event.type == "SIGNAL":
+            order_event = self.generate_naive_order(event)
+            self.events.put(order_event)
+
+    def create_equity_curve_dataframe(self):
+        """
+        all_holdings is [{h1, h2, ...}] where
+        h1 = {AAPL, MSFT, datetime, cash, commission, total}
+        """
+        curve = pd.DataFrame(
+            self.all_holdings, index_col="datetime", usecols=["datetime", "total"]
+        )
+        curve["returns"] = curve["total"].pct_change()
+        curve["equity_curve"] = (1.0 + curve["returns"]).cumprod()
+        self.equity_curve = curve  # df of datetime: returns, equity_curve
