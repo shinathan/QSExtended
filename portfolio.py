@@ -2,6 +2,7 @@ import datetime
 import numpy as np
 import pandas as pd
 import queue
+import performance
 
 from math import floor
 from event import FillEvent, OrderEvent
@@ -165,5 +166,22 @@ class NaivePortfolio(Portfolio):
 
     def output_summary_stats(self):
         total_return = self.equity_curve["equity_curve"][-1]
+        returns = self.equity_curve["returns"]
+        cum_returns = self.equity_curve["equity_curve"]
+        sharpe_ratio = performance.create_sharpe_ratio(returns)
+        drawdown, max_dd, dd_duration = performance.create_drawdowns(cum_returns)
+        self.equity_curve["drawdown"] = drawdown
 
-        return total_return
+        stats = pd.Series(
+            [
+                f"{round((total_return - 1) * 100, 2)}%",
+                round(sharpe_ratio, 2),
+                f"-{round(max_dd * 100,2)}%",
+                dd_duration,
+            ],
+            index=["Total return", "Sharpe", "Max_DD", "Max_DD_duration"],
+        )
+
+        self.equity_curve.to_csv("results.csv")
+
+        return stats

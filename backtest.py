@@ -80,8 +80,6 @@ class Backtest:
 
     def _output_performance(self):
         self.portfolio.create_equity_curve_dataframe()
-        curve = self.portfolio.equity_curve
-        curve.to_csv("results.csv")
         print("Creating summary stats...")
         stats = self.portfolio.output_summary_stats()
         print(stats)

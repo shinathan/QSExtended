@@ -18,6 +18,18 @@ class DataHandler:
         """
         raise NotImplementedError()
 
+    def get_latest_bar_datetime(self, symbol):
+        """
+        Get datetime of last bar
+        """
+        raise NotImplementedError()
+
+    def get_latest_bars_values(self, symbol, val_type, N=1):
+        """
+        Returns latest OHL or C
+        """
+        raise NotImplementedError()
+
     def update_bars(self):
         """
         returns most recent bar for all symbols
@@ -97,18 +109,6 @@ class HistoricCSVDataHandler(DataHandler):
         for bar in self.symbol_data[symbol]:
             yield bar
 
-    def get_latest_bar_value(self, symbol, val_type):
-        bars_list = self.latest_symbol_data[symbol]
-        return bars_list[-1][1][val_type]
-
-    def get_latest_bar_values(self, symbol, val_type, N=1):
-        bars_list = self.get_latest_bars(symbol, N)
-        return [bar[1][val_type] for bar in bars_list]
-
-    def get_latest_bar_datetime(self, symbol):
-        bars_list = self.latest_symbol_data[symbol]
-        return bars_list[-1][0]  # Get datetime of last bar, TimeStamp object
-
     def get_latest_bars(self, symbol, N=1):
         """
         returns latest N bars
@@ -119,6 +119,20 @@ class HistoricCSVDataHandler(DataHandler):
             print("Symbol does not exist")
         else:
             return bars_list[-N:]
+
+    def get_latest_bar_datetime(self, symbol):
+        bars_list = self.latest_symbol_data[symbol]
+        return bars_list[-1][0]  # Get datetime of last bar, TimeStamp object
+
+    def get_latest_bar_value(self, symbol, val_type):
+        # Get O,H,L or C from latest bar
+        bars_list = self.latest_symbol_data[symbol]
+        return bars_list[-1][1][val_type]
+
+    def get_latest_bars_values(self, symbol, val_type, N=1):
+        # Get O,H,L or C from latest bars
+        bars_list = self.get_latest_bars(symbol, N)
+        return [bar[1][val_type] for bar in bars_list]
 
     def update_bars(self):
         """

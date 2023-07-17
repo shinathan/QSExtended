@@ -32,7 +32,7 @@ class MovingAverageCrossStrategy(Strategy):
         # MarketEvent -> SignalEvent
         if event.type == "MARKET":
             for symbol in self.symbol_list:
-                bars = self.bars.get_latest_bar_values(
+                bars = self.bars.get_latest_bars_values(
                     symbol, "close", N=self.long_window
                 )
                 bar_date = self.bars.get_latest_bar_datetime(symbol)
