@@ -42,7 +42,7 @@ class HistoricCSVDataHandler(DataHandler):
     Read CSVs as if they were provided in live trading
     """
 
-    def __init__(self, events, csv_dir, symbol_list):
+    def __init__(self, events, csv_dir, symbol_list, start_date, end_date):
         # ?Can be put into ABC and then .super()
         """
         events - The queue
@@ -53,9 +53,12 @@ class HistoricCSVDataHandler(DataHandler):
         self.symbol_list = symbol_list
 
         # ?why
-        self.symbol_data = {}  # List of dataframes
+        self.symbol_data = {}  # List of generators
         self.latest_symbol_data = {}
         self.continue_backtest = True
+
+        self.start_date = start_date  # The book left this out! As a result, the start and end date in the strategy do nothing
+        self.end_date = end_date
 
         self._open_convert_csv_files()
 
@@ -80,6 +83,10 @@ class HistoricCSVDataHandler(DataHandler):
                     "volume",
                 ],
             )
+            self.symbol_data[symbol] = self.symbol_data[symbol][
+                (self.symbol_data[symbol].index >= self.start_date)
+                & (self.symbol_data[symbol].index <= self.end_date)
+            ]
             self.symbol_data[symbol].sort_index(inplace=True)
 
             # ?what if market times are not the same. In principle, the cleaned data should not contain empty bars, so this will likely be deleted in the future.

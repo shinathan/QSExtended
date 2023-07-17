@@ -176,7 +176,7 @@ class NaivePortfolio(Portfolio):
             [
                 f"{round((total_return - 1) * 100, 2)}%",
                 round(sharpe_ratio, 2),
-                f"-{round(max_dd * 100,2)}%",
+                f"{round(max_dd * 100,2)}%",
                 dd_duration,
             ],
             index=["Total return", "Sharpe", "Max_DD", "Max_DD_duration"],

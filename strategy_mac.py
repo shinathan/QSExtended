@@ -56,6 +56,7 @@ backtest = Backtest(
     initial_capital=100000,
     heartbeat=0.0,
     start_date=datetime(2020, 8, 1),
+    end_date=datetime(2019, 12, 31),
     data_handler=HistoricCSVDataHandler,
     execution_handler=SimulatedExecutionHandler,
     portfolio=NaivePortfolio,
