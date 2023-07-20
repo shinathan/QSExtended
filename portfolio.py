@@ -134,14 +134,15 @@ class NaivePortfolio(Portfolio):
         order = None
         symbol = signal.symbol
         direction = signal.signal_type
+        quantity = signal.quantity
 
         cur_quantity = self.current_positions[symbol]
         order_type = "MKT"
 
         if direction == "LONG" and cur_quantity == 0:
-            order = OrderEvent(symbol, order_type, 100, "BUY")
+            order = OrderEvent(symbol, order_type, quantity, "BUY")
         elif direction == "SHORT" and cur_quantity == 0:
-            order = OrderEvent(symbol, order_type, 100, "SELL")
+            order = OrderEvent(symbol, order_type, quantity, "SELL")
         elif direction == "EXIT" and cur_quantity > 0:
             order = OrderEvent(symbol, order_type, abs(cur_quantity), "SELL")
         elif direction == "EXIT" and cur_quantity < 0:

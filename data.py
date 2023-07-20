@@ -97,7 +97,11 @@ class HistoricCSVDataHandler(DataHandler):
             else:
                 comb_index.union(self.symbol_data[symbol].index)
 
-            self.latest_symbol_data[symbol] = []
+            self.latest_symbol_data[
+                symbol
+            ] = (
+                []
+            )  # Maybe a dict of dicts makes more sense, because then you can easily lookup dates if the date is a string
 
         for symbol in self.symbol_list:
             # For the symbols that do not have timestamps that other symbols do, do a forward fill
