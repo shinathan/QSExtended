@@ -83,6 +83,9 @@ class HistoricCSVDataHandler(DataHandler):
                     "volume",
                 ],
             )
+            self.symbol_data[symbol].set_index(
+                self.symbol_data[symbol].index.tz_convert(None), inplace=True
+            )
             self.symbol_data[symbol] = self.symbol_data[symbol][
                 (self.symbol_data[symbol].index >= self.start_date)
                 & (self.symbol_data[symbol].index <= self.end_date)
@@ -143,7 +146,7 @@ class HistoricCSVDataHandler(DataHandler):
     def get_latest_bars_values(self, symbol, val_type, N=1):
         # Get O,H,L or C from latest bars
         bars_list = self.get_latest_bars(symbol, N)
-        return [bar[1][val_type] for bar in bars_list]
+        return np.array([bar[1][val_type] for bar in bars_list])
 
     def update_bars(self):
         """

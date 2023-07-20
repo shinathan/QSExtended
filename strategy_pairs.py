@@ -7,6 +7,7 @@ from backtest import Backtest
 from data import HistoricCSVDataHandler
 from portfolio import NaivePortfolio
 from execution import SimulatedExecutionHandler
+import performance
 
 
 class PairsStrategy(Strategy):
@@ -36,16 +37,16 @@ class PairsStrategy(Strategy):
             zscore_last <= -self.zscore_high and not self.long_market
         ):  # Long market means long AREX, short WLL
             self.long_market = True
-            y_signal = SignalEvent(p0, cur_dt, "LONG", 100)
-            x_signal = SignalEvent(p1, cur_dt, "SHORT", hedge_ratio * 100)
+            y_signal = SignalEvent(p0, cur_dt, "LONG", 10000)
+            x_signal = SignalEvent(p1, cur_dt, "SHORT", hedge_ratio * 10000)
         elif abs(zscore_last) <= self.zscore_low and self.long_market:
             self.long_market = False
             y_signal = SignalEvent(p0, cur_dt, "EXIT")
             x_signal = SignalEvent(p1, cur_dt, "EXIT")
         elif zscore_last >= self.zscore_high and not self.short_market:
             self.short_market = True
-            y_signal = SignalEvent(p0, cur_dt, "SHORT", 100)
-            x_signal = SignalEvent(p1, cur_dt, "EXIT", hedge_ratio)
+            y_signal = SignalEvent(p0, cur_dt, "SHORT", 10000)
+            x_signal = SignalEvent(p1, cur_dt, "EXIT", hedge_ratio * 10000)
         elif abs(zscore_last) <= self.zscore_low and self.short_market:
             self.short_market = False
             y_signal = SignalEvent(p0, cur_dt, "EXIT")
@@ -75,3 +76,19 @@ class PairsStrategy(Strategy):
     def calculate_signals(self, event):
         if event.type == "MARKET":
             self.calculate_signals_for_pairs()
+
+
+backtest = Backtest(
+    csv_dir="../data/yahoo",
+    symbol_list=["AREX", "WLL"],
+    initial_capital=100000,
+    heartbeat=0.0,
+    start_date=datetime(2017, 1, 1),
+    end_date=datetime(2017, 12, 31),
+    data_handler=HistoricCSVDataHandler,
+    execution_handler=SimulatedExecutionHandler,
+    portfolio=NaivePortfolio,
+    strategy=PairsStrategy,
+)
+backtest.simulate_trading()
+performance.plot_results("results.csv")
