@@ -36,27 +36,27 @@ class MovingAverageCrossStrategy(Strategy):
                     symbol, "close", N=self.long_window
                 )
                 bar_date = self.bars.get_latest_bar_datetime(symbol)
-                if bars is not None and bars != []:
+                if bars is not None and bars.size >= self.long_window:
                     short_sma = np.mean(bars[-self.short_window :])
                     long_sma = np.mean(bars[-self.long_window :])
 
                     if short_sma > long_sma and self.bought[symbol] == "OUT":
-                        signal = SignalEvent(symbol, bar_date, "LONG")
+                        signal = SignalEvent(symbol, bar_date, "LONG", quantity=100)
                         self.events.put(signal)
                         self.bought[symbol] = "LONG"
                     elif short_sma < long_sma and self.bought[symbol] == "LONG":
-                        signal = SignalEvent(symbol, bar_date, "EXIT")
+                        signal = SignalEvent(symbol, bar_date, "EXIT", quantity=100)
                         self.events.put(signal)
                         self.bought[symbol] = "OUT"
 
 
 backtest = Backtest(
     csv_dir="../data/yahoo",
-    symbol_list=["SPY", "UPRO"],
+    symbol_list=["SPY"],
     initial_capital=100000,
     heartbeat=0.0,
-    start_date=datetime(2020, 8, 1),
-    end_date=datetime(2019, 12, 31),
+    start_date=datetime(2020, 1, 1),
+    end_date=datetime(2022, 12, 31),
     data_handler=HistoricCSVDataHandler,
     execution_handler=SimulatedExecutionHandler,
     portfolio=NaivePortfolio,

@@ -46,7 +46,9 @@ class Backtest:
         self.portfolio = self.portfolio_cls(
             self.data_handler, self.events, self.start_date, self.initial_capital
         )
-        self.execution_handler = self.execution_handler_cls(self.events)
+        self.execution_handler = self.execution_handler_cls(
+            self.events, self.data_handler
+        )
 
     def _run_backtest(self):
         while True:

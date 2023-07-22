@@ -37,6 +37,10 @@ class NaivePortfolio(Portfolio):
         self.all_holdings = self.construct_all_holdings()
         self.current_holdings = self.construct_current_holdings()
 
+        self.transaction_log = (
+            []
+        )  # A list, where each entry is a dictionary corresponding to a transaction (things will get incredibly convoluted once partial fills are taken care off...). Only takes fills into account. In the future: If there are multiple fills for one order, they should be grouped by order ID.
+
     # Initialize is better word
     def construct_all_positions(self):
         d = {symbol: 0 for symbol in self.symbol_list}
@@ -116,18 +120,26 @@ class NaivePortfolio(Portfolio):
         else:
             raise Exception("Incorrect fill direction")
 
-        fill_cost = self.bars.get_latest_bar_value(fill.symbol, "close")
-        cost = fill_dir * fill_cost * fill.quantity
-        self.current_holdings[fill.symbol] += cost
+        self.current_holdings[fill.symbol] += fill.fill_cost
         self.current_holdings["commission"] += fill.commission
-        self.current_holdings["cash"] -= cost + fill.commission
-        self.current_holdings["total"] -= cost + fill.commission
+        self.current_holdings["cash"] -= fill.fill_cost + fill.commission
+        self.current_holdings["total"] -= fill.fill_cost + fill.commission
+
+    def update_transactions_from_fill(self, fill):
+        transaction = {
+            "datetime": fill.timeindex,
+            "symbol": fill.symbol,
+            "price": abs(fill.fill_cost) / fill.quantity,
+            "direction": fill.direction,
+        }
+        self.transaction_log.append(transaction)
 
     def update_fill(self, event):
         # Does the update holdings and update positions
         if event.type == "FILL":
             self.update_positions_from_fill(event)
             self.update_holdings_from_fill(event)
+            self.update_transactions_from_fill(event)
 
     def generate_naive_order(self, signal):
         # SignalEvent -> OrderEvent
@@ -184,5 +196,10 @@ class NaivePortfolio(Portfolio):
         )
 
         self.equity_curve.to_csv("results.csv")
+
+        # Create transaction log df and save to csv
+        transaction_log_df = pd.DataFrame(self.transaction_log)
+        transaction_log_df.set_index("datetime", inplace=True)
+        transaction_log_df.to_csv("transaction_log.csv")
 
         return stats

@@ -83,9 +83,12 @@ class HistoricCSVDataHandler(DataHandler):
                     "volume",
                 ],
             )
-            self.symbol_data[symbol].set_index(
-                self.symbol_data[symbol].index.tz_convert(None), inplace=True
-            )
+
+            # Convert to timezone-naive if timezone aware
+            if self.symbol_data[symbol].index.tz is not None:
+                self.symbol_data[symbol].set_index(
+                    self.symbol_data[symbol].index.tz_convert(None), inplace=True
+                )
             self.symbol_data[symbol] = self.symbol_data[symbol][
                 (self.symbol_data[symbol].index >= self.start_date)
                 & (self.symbol_data[symbol].index <= self.end_date)
