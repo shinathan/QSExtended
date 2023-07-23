@@ -196,6 +196,7 @@ class NaivePortfolio(Portfolio):
         )
 
         self.equity_curve.to_csv("results.csv")
+        performance.plot_results("results.csv")
 
         # Create transaction log df and save to csv
         transaction_log_df = pd.DataFrame(self.transaction_log)
