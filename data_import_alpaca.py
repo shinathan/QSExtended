@@ -44,7 +44,7 @@ for stock in SYMBOL_LIST:
     stock_df = bars.loc[stock][["open", "high", "low", "close", "volume"]]
     stock_df.index.names = ["datetime"]
     stock_df.to_csv(f"../data/alpaca/raw/m1/{stock}.csv")
-    print(f"Downloaded {stock}")
+    print(f"Downloaded {stock} m1 data")
 
 # %% 2. LOAD FROM CSV AND PROCESS
 ### SETTINGS ###
@@ -97,14 +97,18 @@ for stock in SYMBOL_LIST:
     # Fill empty values
     stock_df["tradeable"].fillna(False, inplace=True)
     stock_df["volume"].fillna(0, inplace=True)
-    stock_df[["open", "high", "low", "close"]] = stock_df[
-        ["open", "high", "low", "close"]
-    ].fillna(method="ffill")
+    stock_df["close"] = stock_df["close"].fillna(method="ffill")
+
+    stock_df["open"] = stock_df["open"].fillna(stock_df["close"])
+    stock_df["low"] = stock_df["low"].fillna(stock_df["close"])
+    stock_df["high"] = stock_df["high"].fillna(stock_df["close"])
 
     # Only affects the very start. Else backfill shouldn't be used because of look-ahead bias.
-    stock_df[["open", "high", "low", "close"]] = stock_df[
-        ["open", "high", "low", "close"]
-    ].fillna(method="bfill")
+    stock_df["open"] = stock_df["open"].fillna(method="bfill")
+
+    stock_df["close"] = stock_df["close"].fillna(stock_df["open"])
+    stock_df["low"] = stock_df["low"].fillna(stock_df["open"])
+    stock_df["high"] = stock_df["high"].fillna(stock_df["open"])
 
     if MARKET_HOURS_ONLY == True:
         stock_df = stock_df.between_time("9:30", "16:00")
