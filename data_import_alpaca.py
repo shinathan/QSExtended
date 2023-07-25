@@ -111,9 +111,9 @@ for stock in SYMBOL_LIST:
     stock_df["high"] = stock_df["high"].fillna(stock_df["open"])
 
     if MARKET_HOURS_ONLY == True:
-        stock_df = stock_df.between_time("9:30", "16:00")
+        stock_df = stock_df.between_time("9:30", "15:59")
 
-    stock_df.to_csv(f"../data/alpaca/processed/m1/{stock}.csv")
+    stock_df.to_csv(f"../data/alpaca/processed/m1/bars/{stock}.csv")
     print(f"Processed {stock}")
 
 # %% 3. DOWNLOAD DAILY ADJUSTED AND UNADJUSTED DATA FROM ALPACA AND SAVE
@@ -184,7 +184,7 @@ for stock in SYMBOL_LIST:
 
     # In the processed data (step 2), everything is already adjusted.
     stock_df_processed = pd.read_csv(
-        f"../data/alpaca/processed/m1/{stock}.csv",
+        f"../data/alpaca/processed/m1/bars/{stock}.csv",
         index_col="datetime",
         parse_dates=True,
     )
@@ -195,13 +195,10 @@ for stock in SYMBOL_LIST:
 
     if amount_of_days != amount_of_days_processed:
         print(
-            f"{stock} | The difference between the adjustment days and the processed days are:"
+            f"{stock} | WARNING: The difference between the adjustment days and the processed days are:"
         )
         print(np.setdiff1d(days_in_processed, adjustment.index))
         print(np.setdiff1d(adjustment.index, days_in_processed))
-        raise Exception(
-            f"{stock} | Amount of days in adjustments and processed data is not equal."
-        )
 
     stock_df_processed["temp_date"] = stock_df_processed.index.date
     stock_df_with_adj = pd.merge(
@@ -235,7 +232,5 @@ for stock in SYMBOL_LIST:
             "adjustment",
         ]
     ]
-    stock_df_with_adj.to_csv(f"../data/alpaca/processed/m1/{stock}.csv")
+    stock_df_with_adj.to_csv(f"../data/alpaca/processed/m1/bars/{stock}.csv")
     print(f"{stock} adjustment added")
-
-# %%
