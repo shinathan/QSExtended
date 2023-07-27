@@ -1,7 +1,7 @@
 import finnhub
 import pandas as pd
 
-finnhub_client = finnhub.Client(api_key="cilbg7hr01qk0p7aov30cilbg7hr01qk0p7aov3g")
+finnhub_client = finnhub.Client(api_key="X")
 twitter_symbols = finnhub_client.symbol_lookup("twitter")
 twitter_symbols = twitter_symbols["result"]
 twitter_symbols = pd.DataFrame(twitter_symbols)
