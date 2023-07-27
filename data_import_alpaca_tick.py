@@ -11,12 +11,12 @@ import pandas as pd
 import numpy as np
 
 # %% 1. DOWNLOAD TICK DATA & SAVE TO CSV
-SYMBOL_LIST = ["TOP", "O", "AMC"]
-START_DATE = datetime(2023, 1, 25, 4)  # in ET
-END_DATE = datetime(2023, 2, 5, 22)  # in ET
+SYMBOL_LIST = ["AMC", "TOP"]
+START_DATE = datetime(2023, 1, 1, 4)  # in ET
+END_DATE = datetime(2023, 7, 21, 20)  # in ET
 
 for stock in SYMBOL_LIST:
-    with open("alpaca_secret.txt") as f:
+    with open("../data/alpaca/secret.txt") as f:
         PUBLIC_KEY = next(f).strip()
         PRIVATE_KEY = next(f).strip()
 
@@ -33,10 +33,10 @@ for stock in SYMBOL_LIST:
     )
     ticks = stock_client.get_stock_quotes(stock_request)
     ticks.df.to_csv(f"../data/alpaca/raw/tick/{stock}.csv")
-    print(f"Downloaded {stock} tick data")
+    print(f"{datetime.utcnow()} Downloaded {stock} tick data")
 
 # %% 2. RESAMPLE FROM CSV (TICK -> 1-MINUTE QUOTES)
-SYMBOL_LIST = ["TOP", "O", "AMC"]
+SYMBOL_LIST = ["AMC", "TOP"]
 for stock in SYMBOL_LIST:
     tick_df = pd.read_csv(
         f"../data/alpaca/raw/tick/{stock}.csv",
@@ -201,7 +201,7 @@ for stock in SYMBOL_LIST:
             "tradeable",
         ]
     ].to_csv(f"../data/alpaca/processed/m1/quotes/{stock}.csv")
-    print(f"{stock} | Processed tick data to quotes")
+    print(f"{datetime.utcnow()} | {stock} | Processed tick data to quotes")
 
 # %%
 """
@@ -214,3 +214,5 @@ we should give a warning. We do not have L2 data. Except for futures,
 but futures are already so liquid that it's not worth the hassle
 calculating trade impact.
 """
+
+# I will not do this with Alpaca data, because downloading the tick data takes an eternity.
