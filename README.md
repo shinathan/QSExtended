@@ -1,5 +1,5 @@
 ## In progress...
-**27 July: Currently working on** converting the data import files to Jupyter notebooks and adding comments.
+**30 July: Update** Just finished the data import and processing scripts for alpaca. That took quite a while. I can now finally continue with improving the backtester!
 
 I just started my algotrading journey and am now working on creating a backtester using the QuantStart [tutorial](http://www.quantstart.com/articles/Event-Driven-Backtesting-with-Python-Part-I/) and using the [book](http://www.quantstart.com/successful-algorithmic-trading-ebook/). In the process I will learn and improve my Python. The goal is that the backtester can support 1-minute quote data or 1-minute bar data for stocks. I do not care about speed, understanding what happens is the most important. I will (try to) implement the minimum of features that will still make a decent backtester.
 
