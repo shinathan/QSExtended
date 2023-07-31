@@ -1,7 +1,6 @@
 alpaca_secret.txt
 __pycache__/
 archive/
-AREX.csv
-WLL.csv
+data/
 results.csv
 transaction_log.csv
