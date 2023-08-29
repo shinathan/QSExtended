@@ -3,9 +3,6 @@
 
 I just started my algotrading journey and am now working on creating a backtester using the QuantStart [tutorial](http://www.quantstart.com/articles/Event-Driven-Backtesting-with-Python-Part-I/) and using the [book](http://www.quantstart.com/successful-algorithmic-trading-ebook/). In the process I will learn and improve my Python. The goal is that the backtester can support 1-minute quote data or 1-minute bar data for stocks. I do not care about speed, understanding what happens is the most important. I will (try to) implement the minimum of features that will still make a decent backtester.
 
-The data import utils must be able to:
-* Download tick data and convert to 1-minute quotebars. Data must be in ET (naive timestamp) and contain some extra information such as if the stock is tradable or not (e.g. halted). This is essential because I want to focus on high volatility stocks (because of my hypothesis that volatility = opportunity), which will have halts.
-
 The backtester must be able to:
 * Backtest on 1-minute OHLCV data (data is always adjusted for everything)
 * Backtest on aggregates of data (5m), although the backtester always runs on 1m. This is because we need to track limit/stop orders. In the future I might use higher frequencies, like 15s or 1s at minimum. I will never venture into tick data.
