@@ -1,7 +1,16 @@
+"""
+
+
+
+"""
+
+
 import pandas as pd
 from lightweight_charts import Chart
 
+### SETTINGS ###
 DATA_PATH = "../data/polygon/"
+################
 
 if __name__ == "__main__":
     chart = Chart()
