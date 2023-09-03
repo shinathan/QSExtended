@@ -16,11 +16,10 @@ if __name__ == "__main__":
     chart = Chart()
 
     data = pd.read_csv(
-        DATA_PATH + "raw/m1/SPY.csv",
+        DATA_PATH + "raw/m1/AXLA.csv",
         parse_dates=True,
         index_col="datetime",
         usecols=["datetime", "open", "high", "low", "close", "volume"],
-        nrows=5000,
     )
 
     chart.set(data)
