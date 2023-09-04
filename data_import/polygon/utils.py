@@ -11,6 +11,7 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 import mplfinance as mpf
+import os
 
 DATA_PATH = "../../../data/polygon/"
 
@@ -93,6 +94,148 @@ def download_m1_raw_data(ticker, from_, to, path):
     m1.to_csv(path)
 
 
-download_m1_raw_data(
-    "SPY", from_=(2019, 1, 2), to=(2023, 8, 18), path=DATA_PATH + "/raw/m1/SPY.csv"
-)
+def get_trading_days():
+    """
+    Get a list of trading dates.
+    """
+    if os.path.isfile(DATA_PATH + "../other/market_hours.csv"):
+        trading_hours = pd.read_csv(
+            DATA_PATH + "../other/market_hours.csv",
+            usecols=["date"],
+            index_col="date",
+            parse_dates=True,
+        )
+        return list(trading_hours.index.date)
+    else:
+        raise Exception("There is no file for market hours.")
+
+
+def first_trading_day_after(dt):
+    """
+    Gets first trading day after input date. If there is no file, return the input.
+    """
+    trading_days = get_trading_days()
+    while dt not in trading_days:
+        dt = dt + timedelta(days=1)
+    return dt
+
+
+def last_trading_day_before(dt):
+    """
+    Gets last trading day before input date. If there is no file, return the input.
+    """
+    trading_days = get_trading_days()
+    while dt not in trading_days:
+        dt = dt - timedelta(days=1)
+    return dt
+
+
+def get_tickers_v1():
+    """
+    Retrieves tickers_v1.csv in the correct format.
+    """
+    tickers_v1 = pd.read_csv(
+        DATA_PATH + "raw/tickers_v1.csv",
+        parse_dates=True,
+        index_col=0,
+        keep_default_na=False,
+        na_values=[
+            "#N/A",
+            "#N/A N/A",
+            "#NA",
+            "-1.#IND",
+            "-1.#QNAN",
+            "-NaN",
+            "-nan",
+            "1.#IND",
+            "1.#QNAN",
+            "<NA>",
+            "N/A",
+            "NULL",
+            "NaN",
+            "None",
+            "n/a",
+            "nan",
+            "null",
+        ],
+    )
+    tickers_v1["start_date"] = pd.to_datetime(tickers_v1["start_date"]).dt.date
+    tickers_v1["end_date"] = pd.to_datetime(tickers_v1["end_date"]).dt.date
+    tickers_v1["last_updated_utc"] = pd.to_datetime(
+        tickers_v1["last_updated_utc"]
+    ).dt.date
+    return tickers_v1
+
+
+def get_tickers_v2():
+    """
+    Retrieves tickers_v2.csv in the correct format.
+    """
+    tickers_v2 = pd.read_csv(
+        DATA_PATH + "raw/tickers_v2.csv",
+        parse_dates=True,
+        index_col=0,
+        keep_default_na=False,
+        na_values=[
+            "#N/A",
+            "#N/A N/A",
+            "#NA",
+            "-1.#IND",
+            "-1.#QNAN",
+            "-NaN",
+            "-nan",
+            "1.#IND",
+            "1.#QNAN",
+            "<NA>",
+            "N/A",
+            "NULL",
+            "NaN",
+            "None",
+            "n/a",
+            "nan",
+            "null",
+        ],
+    )
+    tickers_v2["start_date"] = pd.to_datetime(tickers_v2["start_date"]).dt.date
+    tickers_v2["end_date"] = pd.to_datetime(tickers_v2["end_date"]).dt.date
+    tickers_v2["last_updated_utc"] = pd.to_datetime(
+        tickers_v2["last_updated_utc"]
+    ).dt.date
+    return tickers_v2
+
+
+def get_tickers_v3():
+    """
+    Retrieves tickers_v3.csv in the correct format.
+    """
+    tickers_v3 = pd.read_csv(
+        DATA_PATH + "raw/tickers_v3.csv",
+        parse_dates=True,
+        index_col=0,
+        keep_default_na=False,
+        na_values=[
+            "#N/A",
+            "#N/A N/A",
+            "#NA",
+            "-1.#IND",
+            "-1.#QNAN",
+            "-NaN",
+            "-nan",
+            "1.#IND",
+            "1.#QNAN",
+            "<NA>",
+            "N/A",
+            "NULL",
+            "NaN",
+            "None",
+            "n/a",
+            "nan",
+            "null",
+        ],
+    )
+    tickers_v3["start_date"] = pd.to_datetime(tickers_v3["start_date"]).dt.date
+    tickers_v3["end_date"] = pd.to_datetime(tickers_v3["end_date"]).dt.date
+    tickers_v3["last_updated_utc"] = pd.to_datetime(
+        tickers_v3["last_updated_utc"]
+    ).dt.date
+    return tickers_v3
