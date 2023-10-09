@@ -9,67 +9,44 @@ from pytz import timezone
 import pytz
 import pandas as pd
 import numpy as np
-import plotly.graph_objects as go
-import mplfinance as mpf
 import os
 
-DATA_PATH = "../../../data/polygon/"
+POLYGON_DATA_PATH = "C:/Users/Nathan/Desktop/Algotrading/Code/data/polygon/"
+SHARADAR_DATA_PATH = "C:/Users/Nathan/Desktop/Algotrading/Code/data/sharadar/"
 
 
-def datetime_to_unix(year=None, month=None, date=None, hour=0, minute=0, dt=None):
+def datetime_to_unix(dt):
     """
-    Converts a ET datetime to the corresponding Unix msec stamp.
-    The input can either be year/month/date or a datetime object.
-        Input must be either
-            year : int
-            month : int
-            date : int
-            hour : int (optional)
-            minute : int (optional)
-        Or
+    Converts a ET-naive datetime object to msec timestamp.
             dt : datetime (keyword-only)
     """
-    if all(isinstance(value, int) for value in (year, month, date, hour, minute)):
-        time_ET = timezone("US/Eastern").localize(
-            datetime(year, month, date, hour, minute)
-        )
-    elif isinstance(dt, datetime):
+    if isinstance(dt, datetime):
         time_ET = timezone("US/Eastern").localize(dt)
+        return int(time_ET.timestamp() * 1000)
     else:
-        raise Exception("No year/month/date or datetime object specified.")
-
-    return int(time_ET.timestamp() * 1000)
+        raise Exception("No datetime object specified.")
 
 
-def download_m1_raw_data(ticker, from_, to, path):
+def download_m1_raw_data(ticker, from_, to, columns, path, client, to_parquet=False):
     """
-    Downloads 1-minute data from Polygon, converts to ET-naive time and store. Includes extended hours.
+    Downloads raw 1-minute data from Polygon, converts to ET-naive time and store to either a
+    csv file or Parquet file. Includes extended hours.
         ticker : str
-        from_ : tuple(year : int, month : int, date : int) or datetime
-        to : tuple(year : int, month : int, date : int) or datetime
-        path : str
+        from_ : datetime or date object
+        to : datetime or date object
+        columns : list of column names to keep
+        path : str, if None is specified, the function returns the df instead.
+        to_parquet : bool, if
+        client : the RESTClient object
     """
-    # Check if int or datetime given for from_, then get start_unix
-    if isinstance(from_, datetime):
-        start_unix = datetime_to_unix(dt=from_)
-    elif all(isinstance(value, int) for value in from_):
-        start_unix = datetime_to_unix(*from_, hour=4)  # (* unpacks the tuple)
+    if all(isinstance(value, date) for value in (from_, to)):
+        start_unix = datetime_to_unix(dt=datetime.combine(from_, time(4)))
+        end_unix = datetime_to_unix(dt=datetime.combine(to, time(20)))
+    elif all(isinstance(value, datetime) for value in (from_, to)):
+        start_unix = datetime_to_unix(from_)
+        end_unix = datetime_to_unix(to)
     else:
-        raise Exception("No year/month/date or datetime object specified.")
-
-    # Check if int or datetime given for to, then get end_unix
-    if isinstance(to, datetime):
-        end_unix = datetime_to_unix(dt=to)
-    elif all(isinstance(value, int) for value in to):
-        # Technically the last minute is 19:59 or earlier on early closes, but if we download 20:00 the last bar (or hours for early closes) will simply not exist. So for simplicity we just use hour = 20.
-        end_unix = datetime_to_unix(*to, hour=20)  # (* unpacks the tuple)
-    else:
-        raise Exception("No year/month/date or datetime object specified.")
-
-    with open(DATA_PATH + "secret.txt") as f:
-        KEY = next(f).strip()
-
-    client = RESTClient(api_key=KEY)
+        raise Exception("No datetime or date object specified.")
 
     m1 = pd.DataFrame(
         client.list_aggs(
@@ -78,29 +55,43 @@ def download_m1_raw_data(ticker, from_, to, path):
             timespan="minute",
             from_=start_unix,
             to=end_unix,
-            limit=10000,
+            limit=50000,
+            adjusted=False,
         )
     )
-    m1["timestamp"] = pd.to_datetime(
-        m1["timestamp"], unit="ms"
-    )  # Convert timestamp to UTC
-    m1.rename(columns={"timestamp": "datetime"}, inplace=True)
-    m1["datetime"] = m1["datetime"].dt.tz_localize(
-        pytz.UTC
-    )  # Make UTC aware (in order to convert)
-    m1["datetime"] = m1["datetime"].dt.tz_convert("US/Eastern")  # Convert UTC to ET
-    m1["datetime"] = m1["datetime"].dt.tz_localize(None)  # Make timezone naive
-    m1.set_index("datetime", inplace=True)
-    m1.to_csv(path)
+    if not m1.empty:
+        m1["timestamp"] = pd.to_datetime(
+            m1["timestamp"], unit="ms"
+        )  # Convert timestamp to UTC
+        m1.rename(columns={"timestamp": "datetime"}, inplace=True)
+        m1["datetime"] = m1["datetime"].dt.tz_localize(
+            pytz.UTC
+        )  # Make UTC aware (in order to convert)
+        m1["datetime"] = m1["datetime"].dt.tz_convert("US/Eastern")  # Convert UTC to ET
+        m1["datetime"] = m1["datetime"].dt.tz_localize(None)  # Make timezone naive
+        m1.set_index("datetime", inplace=True)
+        m1 = m1[columns]
+
+        if path is None:
+            return m1
+
+        if to_parquet:
+            m1.to_parquet(path, engine="pyarrow")
+        else:
+            m1.to_csv(path)
+    else:
+        print(
+            f"There is no data for {ticker} from {from_.isoformat()} to {to.isoformat()}"
+        )
 
 
-def get_trading_days():
+def get_trading_dates():
     """
     Get a list of trading dates.
     """
-    if os.path.isfile(DATA_PATH + "../other/market_hours.csv"):
+    if os.path.isfile(POLYGON_DATA_PATH + "../other/market_hours.csv"):
         trading_hours = pd.read_csv(
-            DATA_PATH + "../other/market_hours.csv",
+            POLYGON_DATA_PATH + "../other/market_hours.csv",
             usecols=["date"],
             index_col="date",
             parse_dates=True,
@@ -110,33 +101,39 @@ def get_trading_days():
         raise Exception("There is no file for market hours.")
 
 
-def first_trading_day_after(dt):
+def first_trading_date_after_equal(dt):
     """
-    Gets first trading day after input date. If there is no file, return the input.
+    Gets first trading day after or equal to input date. Return the input if out of range.
     """
-    trading_days = get_trading_days()
+    trading_days = get_trading_dates()
+    if dt > trading_days[-1]:
+        print("Out of range! Returning input.")
+        return dt
     while dt not in trading_days:
         dt = dt + timedelta(days=1)
     return dt
 
 
-def last_trading_day_before(dt):
+def last_trading_date_before_equal(dt):
     """
-    Gets last trading day before input date. If there is no file, return the input.
+    Gets last trading day before or equal to input date. Return the input if out of range.
     """
-    trading_days = get_trading_days()
+    trading_days = get_trading_dates()
+    if dt < trading_days[-1]:
+        print("Out of range! Returning input.")
+        return dt
     while dt not in trading_days:
         dt = dt - timedelta(days=1)
     return dt
 
 
-def get_tickers_v1():
+def get_tickers(v):
     """
-    Retrieves tickers_v1.csv in the correct format.
+    Retrieve the ticker list.
     """
-    tickers_v1 = pd.read_csv(
-        DATA_PATH + "raw/tickers_v1.csv",
-        parse_dates=True,
+    tickers = pd.read_csv(
+        f"../../../data/tickers_v{v}.csv",
+        parse_dates=["start_date", "end_date"],
         index_col=0,
         keep_default_na=False,
         na_values=[
@@ -159,83 +156,9 @@ def get_tickers_v1():
             "null",
         ],
     )
-    tickers_v1["start_date"] = pd.to_datetime(tickers_v1["start_date"]).dt.date
-    tickers_v1["end_date"] = pd.to_datetime(tickers_v1["end_date"]).dt.date
-    tickers_v1["last_updated_utc"] = pd.to_datetime(
-        tickers_v1["last_updated_utc"]
-    ).dt.date
-    return tickers_v1
-
-
-def get_tickers_v2():
-    """
-    Retrieves tickers_v2.csv in the correct format.
-    """
-    tickers_v2 = pd.read_csv(
-        DATA_PATH + "raw/tickers_v2.csv",
-        parse_dates=True,
-        index_col=0,
-        keep_default_na=False,
-        na_values=[
-            "#N/A",
-            "#N/A N/A",
-            "#NA",
-            "-1.#IND",
-            "-1.#QNAN",
-            "-NaN",
-            "-nan",
-            "1.#IND",
-            "1.#QNAN",
-            "<NA>",
-            "N/A",
-            "NULL",
-            "NaN",
-            "None",
-            "n/a",
-            "nan",
-            "null",
-        ],
+    tickers["start_date"] = pd.to_datetime(tickers["start_date"]).dt.date
+    tickers["end_date"] = pd.to_datetime(tickers["end_date"]).dt.date
+    tickers["cik"] = tickers["cik"].apply(
+        lambda str: float(str) if len(str) != 0 else np.nan
     )
-    tickers_v2["start_date"] = pd.to_datetime(tickers_v2["start_date"]).dt.date
-    tickers_v2["end_date"] = pd.to_datetime(tickers_v2["end_date"]).dt.date
-    tickers_v2["last_updated_utc"] = pd.to_datetime(
-        tickers_v2["last_updated_utc"]
-    ).dt.date
-    return tickers_v2
-
-
-def get_tickers_v3():
-    """
-    Retrieves tickers_v3.csv in the correct format.
-    """
-    tickers_v3 = pd.read_csv(
-        DATA_PATH + "raw/tickers_v3.csv",
-        parse_dates=True,
-        index_col=0,
-        keep_default_na=False,
-        na_values=[
-            "#N/A",
-            "#N/A N/A",
-            "#NA",
-            "-1.#IND",
-            "-1.#QNAN",
-            "-NaN",
-            "-nan",
-            "1.#IND",
-            "1.#QNAN",
-            "<NA>",
-            "N/A",
-            "NULL",
-            "NaN",
-            "None",
-            "n/a",
-            "nan",
-            "null",
-        ],
-    )
-    tickers_v3["start_date"] = pd.to_datetime(tickers_v3["start_date"]).dt.date
-    tickers_v3["end_date"] = pd.to_datetime(tickers_v3["end_date"]).dt.date
-    tickers_v3["last_updated_utc"] = pd.to_datetime(
-        tickers_v3["last_updated_utc"]
-    ).dt.date
-    return tickers_v3
+    return tickers
