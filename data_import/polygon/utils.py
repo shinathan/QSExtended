@@ -1,5 +1,5 @@
 """
-This script has some functions from the notebooks. There are no functions that are not copy-pasted.
+This script has some functions from the notebooks.
 """
 
 
@@ -162,3 +162,24 @@ def get_tickers(v):
         lambda str: float(str) if len(str) != 0 else np.nan
     )
     return tickers
+
+
+def get_market_hours():
+    """Retrieves the market hours"""
+    market_hours = pd.read_csv(
+        POLYGON_DATA_PATH + "../other/market_hours.csv", index_col=0
+    )
+    market_hours.index = pd.to_datetime(market_hours.index).date
+    market_hours.premarket_open = pd.to_datetime(
+        market_hours.premarket_open, format="%H:%M:%S"
+    ).dt.time
+    market_hours.regular_open = pd.to_datetime(
+        market_hours.regular_open, format="%H:%M:%S"
+    ).dt.time
+    market_hours.regular_close = pd.to_datetime(
+        market_hours.regular_close, format="%H:%M:%S"
+    ).dt.time
+    market_hours.postmarket_close = pd.to_datetime(
+        market_hours.postmarket_close, format="%H:%M:%S"
+    ).dt.time
+    return market_hours
