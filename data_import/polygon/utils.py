@@ -6,6 +6,7 @@ This script has some functions from the notebooks.
 from polygon.rest import RESTClient
 from datetime import datetime, date, time, timedelta
 from pytz import timezone
+from functools import lru_cache
 import pytz
 import pandas as pd
 import numpy as np
@@ -164,6 +165,7 @@ def get_tickers(v):
     return tickers
 
 
+@lru_cache
 def get_market_hours():
     """Retrieves the market hours"""
     market_hours = pd.read_csv(
