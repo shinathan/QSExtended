@@ -77,7 +77,7 @@ def download_m1_raw_data(ticker, from_, to, columns, path, client, to_parquet=Fa
             return m1
 
         if to_parquet:
-            m1.to_parquet(path, engine="pyarrow")
+            m1.to_parquet(path, engine="pyarrow", compression="brotli")
         else:
             m1.to_csv(path)
     else:

@@ -10,7 +10,7 @@ import asyncio
 import pandas as pd
 import numpy as np
 from polygon.rest import RESTClient
-from datetime import datetime, timedelta, time
+from datetime import datetime, time
 import pytz
 from utils import datetime_to_unix, get_tickers
 
@@ -63,7 +63,11 @@ async def download_data(id, ticker, start_date, end_date, KEY, semaphore):
                 data["datetime"] = data["datetime"].dt.tz_localize(None)
                 data.set_index(data["datetime"], inplace=True)
                 data = data[["open", "high", "low", "close", "volume"]]
-                data.to_parquet(DATA_PATH + f"raw/m2/{id}.parquet", header=False)
+                data.to_parquet(
+                    DATA_PATH + f"raw/m2/{id}.parquet",
+                    engine="pyarrow",
+                    compression="brotli",
+                )
 
                 print(id)
 
