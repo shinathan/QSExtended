@@ -1,8 +1,6 @@
 """
 This script has some functions from the notebooks.
 """
-
-
 from polygon.rest import RESTClient
 from datetime import datetime, date, time, timedelta
 from pytz import timezone
@@ -86,27 +84,19 @@ def download_m1_raw_data(ticker, from_, to, columns, path, client, to_parquet=Fa
         )
 
 
-def get_trading_dates():
+def get_market_dates():
     """
     Get a list of trading dates.
     """
-    if os.path.isfile(POLYGON_DATA_PATH + "../other/market_hours.csv"):
-        trading_hours = pd.read_csv(
-            POLYGON_DATA_PATH + "../other/market_hours.csv",
-            usecols=["date"],
-            index_col="date",
-            parse_dates=True,
-        )
-        return list(trading_hours.index.date)
-    else:
-        raise Exception("There is no file for market hours.")
+    market_hours = get_market_hours()
+    return list(market_hours.index)
 
 
 def first_trading_date_after_equal(dt):
     """
     Gets first trading day after or equal to input date. Return the input if out of range.
     """
-    trading_days = get_trading_dates()
+    trading_days = get_market_dates()
     if dt > trading_days[-1]:
         print("Out of range! Returning input.")
         return dt
@@ -119,7 +109,7 @@ def last_trading_date_before_equal(dt):
     """
     Gets last trading day before or equal to input date. Return the input if out of range.
     """
-    trading_days = get_trading_dates()
+    trading_days = get_market_dates()
     if dt < trading_days[-1]:
         print("Out of range! Returning input.")
         return dt
@@ -159,6 +149,10 @@ def get_tickers(v):
     )
     tickers["start_date"] = pd.to_datetime(tickers["start_date"]).dt.date
     tickers["end_date"] = pd.to_datetime(tickers["end_date"]).dt.date
+    if tickers.columns.isin(["start_data", "end_data"]).any():
+        tickers["start_data"] = pd.to_datetime(tickers["start_data"]).dt.date
+        tickers["end_data"] = pd.to_datetime(tickers["end_data"]).dt.date
+
     tickers["cik"] = tickers["cik"].apply(
         lambda str: float(str) if len(str) != 0 else np.nan
     )
@@ -185,6 +179,14 @@ def get_market_hours():
         market_hours.postmarket_close, format="%H:%M:%S"
     ).dt.time
     return market_hours
+
+
+def get_ticker_changes():
+    ticker_changes = pd.read_csv(
+        POLYGON_DATA_PATH + "../stockanalysis/ticker_changes.csv", index_col=0
+    )
+    ticker_changes.index = pd.to_datetime(ticker_changes.index).date
+    return ticker_changes
 
 
 def remove_extended_hours(bars):
