@@ -185,3 +185,24 @@ def get_market_hours():
         market_hours.postmarket_close, format="%H:%M:%S"
     ).dt.time
     return market_hours
+
+
+def remove_extended_hours(bars):
+    """
+    Remove extended hours.
+    """
+    # Remove non-regular trading minutes. Only the post-market hours of early closes remain.
+    bars = bars.between_time("9:30", "15:59").copy()
+
+    # Remove early close post-market bars
+    market_hours = get_market_hours()
+    early_closes = market_hours[market_hours["regular_close"] != time(15, 59)]
+    for date_, early_close in early_closes.iterrows():
+        bars = bars[
+            ~(
+                (bars.index > datetime.combine(date_, early_close["regular_close"]))
+                & (bars.index <= datetime.combine(date_, time(19, 59)))
+            )
+        ]
+
+    return bars
