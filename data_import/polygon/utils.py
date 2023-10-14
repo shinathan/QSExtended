@@ -84,6 +84,34 @@ def download_m1_raw_data(ticker, from_, to, columns, path, client, to_parquet=Fa
         )
 
 
+@lru_cache
+def get_market_hours():
+    """Retrieves the market hours"""
+    market_hours = pd.read_csv(
+        POLYGON_DATA_PATH + "../other/market_hours.csv", index_col=0
+    )
+    market_hours.index = pd.to_datetime(market_hours.index).date
+    market_hours.premarket_open = pd.to_datetime(
+        market_hours.premarket_open, format="%H:%M:%S"
+    ).dt.time
+    market_hours.regular_open = pd.to_datetime(
+        market_hours.regular_open, format="%H:%M:%S"
+    ).dt.time
+    market_hours.regular_close = pd.to_datetime(
+        market_hours.regular_close, format="%H:%M:%S"
+    ).dt.time
+    market_hours.postmarket_close = pd.to_datetime(
+        market_hours.postmarket_close, format="%H:%M:%S"
+    ).dt.time
+    return market_hours
+
+
+@lru_cache
+def get_market_minutes():
+    trading_datetimes = pd.read_csv(POLYGON_DATA_PATH + "../other/trading_minutes.csv")
+    return pd.to_datetime(trading_datetimes["datetime"])
+
+
 def get_market_dates():
     """
     Get a list of trading dates.
@@ -116,6 +144,27 @@ def last_trading_date_before_equal(dt):
     while dt not in trading_days:
         dt = dt - timedelta(days=1)
     return dt
+
+
+def remove_extended_hours(bars):
+    """
+    Remove extended hours.
+    """
+    # Remove non-regular trading minutes. Only the post-market hours of early closes remain.
+    bars = bars.between_time("9:30", "15:59").copy()
+
+    # Remove early close post-market bars
+    market_hours = get_market_hours()
+    early_closes = market_hours[market_hours["regular_close"] != time(15, 59)]
+    for date_, early_close in early_closes.iterrows():
+        bars = bars[
+            ~(
+                (bars.index > datetime.combine(date_, early_close["regular_close"]))
+                & (bars.index <= datetime.combine(date_, time(19, 59)))
+            )
+        ]
+
+    return bars
 
 
 def get_tickers(v):
@@ -159,52 +208,9 @@ def get_tickers(v):
     return tickers
 
 
-@lru_cache
-def get_market_hours():
-    """Retrieves the market hours"""
-    market_hours = pd.read_csv(
-        POLYGON_DATA_PATH + "../other/market_hours.csv", index_col=0
-    )
-    market_hours.index = pd.to_datetime(market_hours.index).date
-    market_hours.premarket_open = pd.to_datetime(
-        market_hours.premarket_open, format="%H:%M:%S"
-    ).dt.time
-    market_hours.regular_open = pd.to_datetime(
-        market_hours.regular_open, format="%H:%M:%S"
-    ).dt.time
-    market_hours.regular_close = pd.to_datetime(
-        market_hours.regular_close, format="%H:%M:%S"
-    ).dt.time
-    market_hours.postmarket_close = pd.to_datetime(
-        market_hours.postmarket_close, format="%H:%M:%S"
-    ).dt.time
-    return market_hours
-
-
 def get_ticker_changes():
     ticker_changes = pd.read_csv(
         POLYGON_DATA_PATH + "../stockanalysis/ticker_changes.csv", index_col=0
     )
     ticker_changes.index = pd.to_datetime(ticker_changes.index).date
     return ticker_changes
-
-
-def remove_extended_hours(bars):
-    """
-    Remove extended hours.
-    """
-    # Remove non-regular trading minutes. Only the post-market hours of early closes remain.
-    bars = bars.between_time("9:30", "15:59").copy()
-
-    # Remove early close post-market bars
-    market_hours = get_market_hours()
-    early_closes = market_hours[market_hours["regular_close"] != time(15, 59)]
-    for date_, early_close in early_closes.iterrows():
-        bars = bars[
-            ~(
-                (bars.index > datetime.combine(date_, early_close["regular_close"]))
-                & (bars.index <= datetime.combine(date_, time(19, 59)))
-            )
-        ]
-
-    return bars
