@@ -15,10 +15,15 @@ SHARADAR_DATA_PATH = "C:/Users/Nathan/Desktop/Algotrading/Code/data/sharadar/"
 
 
 def datetime_to_unix(dt):
+    """Converts a ET-naive datetime object to msec timestamp
+
+    Args:
+        dt (datetime): datetime to convert
+
+    Returns:
+        int: Unix millisecond timestamp
     """
-    Converts a ET-naive datetime object to msec timestamp.
-            dt : datetime (keyword-only)
-    """
+
     if isinstance(dt, datetime):
         time_ET = timezone("US/Eastern").localize(dt)
         return int(time_ET.timestamp() * 1000)
@@ -167,9 +172,9 @@ def remove_extended_hours(bars):
     return bars
 
 
-def get_tickers(v):
+def get_tickers(v=5):
     """
-    Retrieve the ticker list.
+    Retrieve the ticker list. Default is 5.
     """
     tickers = pd.read_csv(
         f"../../../data/tickers_v{v}.csv",
