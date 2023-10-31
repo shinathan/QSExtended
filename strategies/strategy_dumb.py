@@ -4,8 +4,8 @@ import numpy as np
 from strategy import Strategy
 from event import SignalEvent
 from backtest import Backtest
-from data import HistoricCSVDataHandler
-from execution import SimulatedExecutionHandler
+from data_handler import HistoricCSVDataHandler
+from broker import SimulatedExecutionHandler
 from portfolio import NaivePortfolio
 
 """

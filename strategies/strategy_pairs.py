@@ -4,9 +4,9 @@ import statsmodels.api as sm
 from strategy import Strategy
 from event import SignalEvent
 from backtest import Backtest
-from data import HistoricCSVDataHandler
+from data_handler import HistoricCSVDataHandler
 from portfolio import NaivePortfolio
-from execution import SimulatedExecutionHandler
+from broker import SimulatedExecutionHandler
 import performance
 
 

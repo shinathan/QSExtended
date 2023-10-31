@@ -1,12 +1,17 @@
 from datetime import datetime
 
 import numpy as np
+import sys, os
+
+sys.path.append(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)  # Such that we can import from the parent directory
 
 from strategy import Strategy
 from event import SignalEvent
 from backtest import Backtest
-from data import HistoricCSVDataHandler
-from execution import SimulatedExecutionHandler
+from data_handler import HistoricCSVDataHandler
+from broker import SimulatedExecutionHandler
 from portfolio import NaivePortfolio
 
 
