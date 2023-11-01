@@ -74,18 +74,6 @@ class HistoricalPolygonDataHandler(DataHandler):
         self._all_bars.pop(symbol, None)
         self._latest_bars.pop(symbol, None)
 
-    def get_latest_bars(self, symbol, N=1):
-        """Get the most recent bars
-
-        Args:
-            symbol (str): the ticker or ID
-            N (int, optional): the amount of bars. Defaults to 1.
-
-        Returns:
-            DataFrame: the DataFrame with the data
-        """
-        return pd.DataFrame(self._latest_bars[symbol][-N:])
-
     def get_loaded_symbols(self):
         """Get the loaded symbols
 
@@ -110,3 +98,15 @@ class HistoricalPolygonDataHandler(DataHandler):
                 print(f"The symbol {symbol} has no data for {dt.isoformat()}.")
 
         self.events.put(MarketEvent(dt))
+
+    def get_latest_bars(self, symbol, N=1):
+        """Get the most recent bars
+
+        Args:
+            symbol (str): the ticker or ID
+            N (int, optional): the amount of bars. Defaults to 1.
+
+        Returns:
+            DataFrame: the DataFrame with the data
+        """
+        return pd.DataFrame(self._latest_bars[symbol][-N:])

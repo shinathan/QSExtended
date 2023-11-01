@@ -27,7 +27,7 @@ class StandardPortfolio(Portfolio):
         self.current_positions = {}  # {'AAPL': 10, 'NFLX': -5, ...}
 
         # These 'holdings' continuously change depending on market prices
-        # We do not necessarily have to update this every bar, but we can
+        # We do not necessarily have to update this every bar
         self._current_positions_value = 0
         self._current_equity = initial_capital
 
@@ -42,12 +42,12 @@ class StandardPortfolio(Portfolio):
                 "positions": {},
             }
         )
-        self.transaction_log = []  # list(dict(date, symbol, side, qty, fill, comm.))
+        self.fills_log = []  # list(dict(date, symbol, side, qty, fill, comm.))
 
     def update_from_fill(self, fill):
         # Update cash
         self.current_cash -= fill.fill_price * fill.quantity * fill.direction
-        self.current_cash -= fill.commission
+        self.current_cash -= fill.fees
 
         # Update positions
         if fill.symbol in self.current_positions.keys():
@@ -56,7 +56,7 @@ class StandardPortfolio(Portfolio):
             self.current_positions[fill.symbol] = fill.direction * fill.quantity
 
         # Log transaction
-        self.transaction_log.append(fill.dict())
+        self.fills_log.append(fill.dict())
 
     def _update_holdings_from_market(self):
         if len(self.data_handler.get_loaded_symbols()) > 0:
@@ -104,8 +104,3 @@ class StandardPortfolio(Portfolio):
         df["returns_cum"] = (1.0 + df["returns"]).cumprod() - 1
         df = df.fillna(value=0)
         return df
-
-    def output_summary_stats(self):
-        df = self.create_df_from_holdings_log(self)
-
-        # TODO: stats

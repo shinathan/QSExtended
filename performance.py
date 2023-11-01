@@ -100,3 +100,152 @@ def plot_fig(daily):
     ax3.set_title("Monthly returns", fontsize=10, fontweight="bold")
 
     plt.show()
+
+
+def fills_to_trades(fills):
+    """Converts the fills log to a trade log
+
+    Args:
+        fills (DataFrame): the fills log
+
+    Returns:
+        DataFrame: the trade log
+    """
+    trade_log = pd.DataFrame(
+        columns=[
+            "datetime_in",
+            "symbol",
+            "side",
+            "quantity",
+            "entry",
+            "exit",
+            "datetime_out",
+            "fees",
+            "net P/L %",
+            "net P/L $",
+            "remaining_qty",
+        ]
+    )
+    for dt, trade in fills_log.iterrows():
+        symbol = trade["symbol"]
+        side = trade["side"]
+        opposite_side = "SELL" if side == "BUY" else "BUY"
+        quantity = trade["quantity"]
+        fill_price = trade["fill_price"]
+        fees = trade["fees"]
+
+        current_position_in_symbol_opposite = trade_log[
+            (trade_log["symbol"] == symbol)
+            & (trade_log["side"] == opposite_side)
+            & (trade_log["remaining_qty"] > 0)
+        ]
+        if len(current_position_in_symbol_opposite) == 0:
+            # If no open trades in this symbol in the opposite direction, create new trade
+            trade_log.loc[len(trade_log)] = [
+                dt,
+                symbol,
+                side,
+                quantity,
+                fill_price,
+                np.nan,
+                np.nan,
+                fees,
+                np.nan,
+                np.nan,
+                quantity,
+            ]
+        else:
+            # Else we (partially) close the trade(s) and create a new trade if a net position remains. Using FIFO.
+            for index, open_trade in current_position_in_symbol_opposite.iterrows():
+                remaining_qty_open_trade = open_trade["remaining_qty"]
+                already_filled_qty_open_trade = (
+                    open_trade["quantity"] - open_trade["remaining_qty"]
+                )
+                current_average_fill = open_trade["exit"]
+
+                # Partial close of open_trade
+                if quantity < remaining_qty_open_trade:
+                    if np.isnan(current_average_fill):
+                        trade_log.loc[index, "exit"] = fill_price
+                    else:
+                        average_fill_exit = (
+                            (current_average_fill * already_filled_qty_open_trade)
+                            + (fill_price * quantity)
+                        ) / (
+                            already_filled_qty_open_trade + quantity
+                        )  # Calculate new average fill
+                        trade_log.loc[index, "exit"] = average_fill_exit
+
+                    trade_log.loc[index, "remaining_qty"] -= quantity
+                    trade_log.loc[index, "fees"] += fees
+                    break  # We don't have to look at the next trade
+
+                # Full close of open_trade
+                elif quantity >= remaining_qty_open_trade:
+                    if np.isnan(current_average_fill):
+                        trade_log.loc[index, "exit"] = fill_price
+                    else:
+                        average_fill_exit = (
+                            (current_average_fill * already_filled_qty_open_trade)
+                            + (fill_price * quantity)
+                        ) / (
+                            already_filled_qty_open_trade + quantity
+                        )  # Calculate new average fill
+                        trade_log.loc[index, "exit"] = average_fill_exit
+
+                    trade_log.loc[index, "remaining_qty"] = 0
+                    trade_log.loc[index, "fees"] += fees
+                    trade_log.loc[index, "datetime_out"] = dt
+
+                    if quantity == remaining_qty_open_trade:
+                        break  # We don't have to look at the next trade
+                    else:
+                        quantity = (
+                            quantity - remaining_qty_open_trade
+                        )  # Calculate remaining quantity
+
+                        # If we are at the end and there is still a remaining quantity, that is a new position
+                        if index == len(current_position_in_symbol_opposite) - 1:
+                            trade_log.loc[len(trade_log)] = [
+                                dt,
+                                symbol,
+                                side,
+                                quantity,
+                                fill_price,
+                                np.nan,
+                                np.nan,
+                                fees,
+                                np.nan,
+                                np.nan,
+                                quantity,
+                            ]
+    return trade_log
+
+
+def calculate_PNL_trade_log(trade_log):
+    """Calculate the PNL for the trade log
+
+    Args:
+        trade_log (DataFrame): the trade log
+
+    Returns:
+        DataFrame: the trade log with PNL
+    """
+    trade_log["direction"] = np.where(trade_log["side"] == "BUY", 1, -1)
+    trade_log["net P/L %"] = (
+        (
+            (trade_log["quantity"] - trade_log["remaining_qty"])
+            * trade_log["direction"]
+            * (trade_log["exit"] - trade_log["entry"])
+        )
+        - trade_log["fees"]
+    ) / trade_log["entry"]
+    trade_log["net P/L $"] = (
+        (trade_log["quantity"] - trade_log["remaining_qty"]) * trade_log["direction"]
+    ) * (trade_log["exit"] - trade_log["entry"]) - trade_log["fees"]
+    return trade_log.drop(columns=["direction"])
+
+
+# Function to get the statistics that use the trade or fill log
+
+# A function that calculates everything, called output_summary(returns, fills)

@@ -30,11 +30,12 @@ class OrderEvent(Event):
         self.datetime = dt
         self.symbol = symbol
         self.side = side  # BUY/SELL
-        self.quantity = quantity
+        self.quantity = quantity  # Always positive.
         self.type = type_  # MKT/LMT (not implemented)
         self.tif = tif  # DAY/GTC/OPG/CLS (not implemented)
 
         self.direction = 1 if side == "BUY" else -1
+
         self.print_order()
 
     def print_order(self):
@@ -53,18 +54,20 @@ class FillEvent(Event):
         side,
         quantity,
         fill_price,
-        commission,
+        fees,
     ):
         self.datetime = dt  # The time of a fill. This may be partial!
         self.symbol = symbol
         self.side = side
-        self.quantity = quantity
-        self.fill_price = fill_price  # The average fill price per share.
-        self.commission = commission  # The total amount of commission. A positive amount means we pay commission.
+        self.quantity = quantity  # Always positive.
+        self.fill_price = fill_price  # Always positive. Per share.
+        self.fees = (
+            fees  # The total amount of fees. A positive amount means we pay fees.
+        )
 
         self.total_fill = self.fill_price * self.quantity
-        self.total_cost = self.total_fill + self.commission
-        self.total_cost_per_share = self.fill_price + self.commission / self.quantity
+        self.total_cost = self.total_fill + self.fees
+        self.total_cost_per_share = self.fill_price + self.fees / self.quantity
 
         self.direction = 1 if side == "BUY" else -1
 
@@ -75,5 +78,5 @@ class FillEvent(Event):
             "side": self.side,
             "quantity": self.quantity,
             "fill_price": self.fill_price,
-            "commission": self.commission,
+            "fees": self.fees,
         }

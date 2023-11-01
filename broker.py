@@ -15,8 +15,8 @@ class SimulatedBroker(Broker):
         self.events = events
         self.data_handler = data_handler
 
-    def calculate_commission(self, price, quantity):
-        # This should estimate the broker commissions AND the spread.
+    def calculate_fees(self, price, quantity):
+        # This should estimate the broker commission AND the spread.
         # If you have access to PFOF brokers, only the spread is enough.
         # Don't forget slippage if you have a large account.
         return max(1, quantity * 0.005) + price * 0.002
@@ -35,6 +35,6 @@ class SimulatedBroker(Broker):
                 side=event.side,
                 quantity=event.quantity,
                 fill_price=current_price,
-                commission=self.calculate_commission(current_price, event.quantity),
+                fees=self.calculate_fees(current_price, event.quantity),
             )
             self.events.put(fill_event)
