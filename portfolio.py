@@ -100,7 +100,7 @@ class StandardPortfolio(Portfolio):
     def create_df_from_holdings_log(self):
         df = pd.DataFrame(self.portfolio_log)
         df.set_index("datetime", inplace=True)
-        df["returns"] = df["equity"].pct_change()
-        df["returns_cum"] = (1.0 + df["returns"]).cumprod() - 1
+        df["return"] = df["equity"].pct_change()
+        df["return_cum"] = (1.0 + df["return"]).cumprod() - 1
         df = df.fillna(value=0)
         return df
