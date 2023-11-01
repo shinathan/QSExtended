@@ -16,9 +16,6 @@ class DataHandler:
         # A dictionary of a list of Series containing the most recent data. The reason why it is not a DataFrame is because then we have to build the DataFrame row-by-row. That is extremely slow. And most of the time you only need the last N bars.
         self.latest_bars = {}
 
-        # A dictionary of DataFrames with ALL data. This is only necessary when backtesting, because it is very inefficient to retrieve bars one-by-one and putting them in self.latest_bars. Instead all data is loaded and then we iterate through them. In live trading this is not necessary (or even possible because we do not have access to future data!).
-        # self.all_bars = {}
-
     def get_latest_bars(self, symbol, N=1):
         """
         Retrieve the latest bars for a specific symbol from self.latest_bars.
@@ -38,8 +35,8 @@ class DataHandler:
 class HistoricalPolygonDataHandler(DataHandler):
     def __init__(self, events):
         self.events = events
-        self.latest_bars = {}
-        self.all_bars = {}
+        self._latest_bars = {}
+        self._all_bars = {}
 
     def load_data(
         self,
@@ -58,9 +55,9 @@ class HistoricalPolygonDataHandler(DataHandler):
             timeframe (str, optional): 1 for 1-minute, 5 for 5-minute. Defaults to daily bars.
             regular_hours_only (bool, optional): Whether we need to remove extended hours. Defaults to False.
         """
-        self.latest_bars[symbol] = []
+        self._latest_bars[symbol] = []
 
-        self.all_bars[symbol] = get_data(
+        self._all_bars[symbol] = get_data(
             symbol,
             start=start,
             end=end,
@@ -74,8 +71,8 @@ class HistoricalPolygonDataHandler(DataHandler):
         Args:
             symbol (str): the ticker or ID
         """
-        self.all_bars.pop(symbol, None)
-        self.latest_bars.pop(symbol, None)
+        self._all_bars.pop(symbol, None)
+        self._latest_bars.pop(symbol, None)
 
     def get_latest_bars(self, symbol, N=1):
         """Get the most recent bars
@@ -87,7 +84,7 @@ class HistoricalPolygonDataHandler(DataHandler):
         Returns:
             DataFrame: the DataFrame with the data
         """
-        return pd.DataFrame(self.latest_bars[symbol][-N:])
+        return pd.DataFrame(self._latest_bars[symbol][-N:])
 
     def get_loaded_symbols(self):
         """Get the loaded symbols
@@ -95,7 +92,7 @@ class HistoricalPolygonDataHandler(DataHandler):
         Returns:
             list: list of symbols
         """
-        return list(self.all_bars.keys())
+        return list(self._all_bars.keys())
 
     def update_bars(self, dt):
         """Simulates a passed minute by appending self.latest_bars and generating a MarketEvent.
@@ -104,6 +101,9 @@ class HistoricalPolygonDataHandler(DataHandler):
             dt (Datetime): the datetime minute to which we update.
         """
         for symbol in self.get_loaded_symbols():
-            self.latest_bars[symbol].append(self.all_bars[symbol].loc[dt])
+            try:
+                self.latest_bars[symbol].append(self._all_bars[symbol].loc[dt])
+            except KeyError:
+                print(f"The symbol {symbol} has no data for {dt.isoformat()}.")
 
-        self.events.put(MarketEvent())
+        self.events.put(MarketEvent(dt))

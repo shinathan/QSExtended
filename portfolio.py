@@ -20,64 +20,78 @@ class StandardPortfolio(Portfolio):
     def __init__(self, events, data_handler, start_date, initial_capital=10000.0):
         self.events = events
         self.data_handler = data_handler
-        self.start_date = start_date
 
+        # These 'positions' only change with a FillEvent
+        # We need to update these at every fill.
         self.current_cash = initial_capital
         self.current_positions = {}  # {'AAPL': 10, 'NFLX': -5, ...}
-        self.current_positions_value = 0
-        self.current_equity = initial_capital
 
-        self.holdings_log = []  # list(dict(date, equity, cash, pos. value, positions))
-        self.holdings_log.append(
+        # These 'holdings' continuously change depending on market prices
+        # We do not necessarily have to update this every bar, but we can
+        self._current_positions_value = 0
+        self._current_equity = initial_capital
+
+        # These log the portfolio status and all transactions
+        self.portfolio_log = []  # list(dict(date, equity, cash, pos. value, positions))
+        self.portfolio_log.append(
             {
                 "datetime": start_date,
-                "equity": self.current_equity,
+                "equity": self._current_equity,
                 "cash": self.current_cash,
-                "positions_value": 0,
+                "positions_value": self._current_positions_value,
                 "positions": {},
             }
         )
         self.transaction_log = []  # list(dict(date, symbol, side, qty, fill, comm.))
 
-    def update_positions_from_fill(self, fill):
-        # Update current positions
+    def update_from_fill(self, fill):
+        # Update cash
+        self.current_cash -= fill.direction * fill.quantity
+
+        # Update positions
         if fill.symbol in self.current_positions.keys():
             self.current_positions[fill.symbol] += fill.direction * fill.quantity
         else:
-            self.current_positions[fill.symbol] == fill.direction * fill.quantity
+            self.current_positions[fill.symbol] = fill.direction * fill.quantity
 
-    def update_holdings_from_fill(self, fill):
-        # Update the holdings (cash, equity, positions)
-        self.current_cash -= fill.direction * fill.quantity
+        # Log transaction
+        self.transaction_log.append(fill.dict())
+
+    def _update_holdings_from_market(self):
+        # Update positions
         position_values = {
-            symbol: position * self.data_handler.get_latest_bars(symbol, N=1)
+            symbol: position
+            * self.data_handler.get_latest_bars(symbol, N=1)["close"].values[0]
             for (symbol, position) in self.current_positions
         }
-        self.current_positions_value = sum(position_values.values())
-        self.current_equity += fill.direction * fill.quantity
+        self._current_positions_value = sum(position_values.values())
 
-    def append_holdings_log(self, fill):
-        self.holdings_log.append(
+        # Update equity
+        self._current_equity == self.current_cash + self._current_positions_value
+
+    def append_portfolio_log(self, dt):
+        # Calculate most recent portfolio status
+        self._update_holdings_from_market()
+
+        self.portfolio_log.append(
             {
-                "datetime": fill.datetime,
-                "equity": self.current_equity,
+                "datetime": dt,
+                "equity": self._current_equity,
                 "cash": self.current_cash,
-                "positions_value": self.current_positions_value,
+                "positions_value": self._current_positions_value,
                 "positions": self.current_positions,
             }
         )
 
-    def append_transaction_log(self, fill):
-        self.transaction_log.append(fill.dict())
+    @property
+    def current_positions_value(self):
+        self._update_holdings_from_market()
+        return self._current_positions_value
 
-    def update_from_fill(self, fill):
-        # Executes the above three functions
-        if isinstance(fill, FillEvent):
-            self.update_positions_from_fill(fill)
-            self.update_holdings_from_fill(fill)
-
-            self.append_holdings_log(fill)
-            self.append_transaction_log(fill)
+    @property
+    def current_equity(self):
+        self._update_holdings_from_market()
+        return self._current_equity
 
     ### These functions should only be executed after the backtest
     def create_df_from_holdings_log(self):
@@ -91,4 +105,4 @@ class StandardPortfolio(Portfolio):
         df = self.create_df_from_holdings_log(self)
         plot_fig(df)
 
-        # Stats
+        # TODO: stats

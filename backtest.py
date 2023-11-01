@@ -69,11 +69,6 @@ class Backtest:
                             self.portfolio.update_timeindex(
                                 event
                             )  # ? May not be necessary at every market data if there is no executional logic
-                        elif event.type == "SIGNAL":
-                            self.signals += (
-                                1  # ? Should be in the Portfolio or Strategy
-                            )
-                            self.portfolio.update_signal(event)
                         elif event.type == "ORDER":
                             self.orders += 1  # ? Idem
                             self.execution_handler.execute_order(event)

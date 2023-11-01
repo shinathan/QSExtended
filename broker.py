@@ -16,15 +16,17 @@ class SimulatedBroker(Broker):
         self.data_handler = data_handler
 
     def calculate_commission(self, price, quantity):
-        # Uses IBKR commission
-        return max(1, quantity * 0.005)
+        # This should estimate the broker commissions AND the spread.
+        # If you have access to PFOF brokers, only the spread is enough.
+        # Don't forget slippage if you have a large account.
+        return max(1, quantity * 0.005) + price * 0.002
 
     def execute_order(self, event):
         if isinstance(event, OrderEvent):
             current_bar = self.data_handler.get_latest_bars(event.symbol, N=1)
             current_price = current_bar["close"].values[
                 0
-            ]  # TODO: option to get next open instead
+            ]  # TODO: option to get next open instead. That is essentially a 1-bar delay.
             current_time = current_bar.index
 
             fill_event = FillEvent(
