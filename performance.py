@@ -51,7 +51,6 @@ def calculate_alpha_beta_weekly(returns, returns_benchmark, risk_free=0):
 def calculate_drawdowns(returns):
     """
     Get drawdown Series, maximum DD and maximum duration
-    cum_returns - Returns of strategy from the beginning
     """
     cum_returns = (returns + 1).cumprod() - 1
     cum_returns_gross = cum_returns + 1

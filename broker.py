@@ -34,7 +34,7 @@ class SimulatedBroker(Broker):
                 symbol=event.symbol,
                 side=event.side,
                 quantity=event.quantity,
-                fill=current_price,
+                fill_price=current_price,
                 commission=self.calculate_commission(current_price, event.quantity),
             )
             self.events.put(fill_event)

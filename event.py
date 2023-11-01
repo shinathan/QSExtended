@@ -52,19 +52,19 @@ class FillEvent(Event):
         symbol,
         side,
         quantity,
-        fill,
+        fill_price,
         commission,
     ):
         self.datetime = dt  # The time of a fill. This may be partial!
         self.symbol = symbol
         self.side = side
         self.quantity = quantity
-        self.fill = fill  # The average fill price per share
-        self.commission = commission  # The total amount of commission
+        self.fill_price = fill_price  # The average fill price per share.
+        self.commission = commission  # The total amount of commission. A positive amount means we pay commission.
 
-        self.total_fill = self.fill * self.quantity
+        self.total_fill = self.fill_price * self.quantity
         self.total_cost = self.total_fill + self.commission
-        self.total_cost_per_share = self.fill + self.commission / self.quantity
+        self.total_cost_per_share = self.fill_price + self.commission / self.quantity
 
         self.direction = 1 if side == "BUY" else -1
 
@@ -74,6 +74,6 @@ class FillEvent(Event):
             "symbol": self.symbol,
             "side": self.side,
             "quantity": self.quantity,
-            "fill": self.fill,
+            "fill_price": self.fill_price,
             "commission": self.commission,
         }

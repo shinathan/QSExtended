@@ -2,7 +2,7 @@ import datetime
 import numpy as np
 import pandas as pd
 import queue
-from performance import *
+import performance
 
 from math import floor
 from event import FillEvent, OrderEvent
@@ -46,7 +46,8 @@ class StandardPortfolio(Portfolio):
 
     def update_from_fill(self, fill):
         # Update cash
-        self.current_cash -= fill.direction * fill.quantity
+        self.current_cash -= fill.fill_price * fill.quantity * fill.direction
+        self.current_cash -= fill.commission
 
         # Update positions
         if fill.symbol in self.current_positions.keys():
@@ -58,19 +59,21 @@ class StandardPortfolio(Portfolio):
         self.transaction_log.append(fill.dict())
 
     def _update_holdings_from_market(self):
-        # Update positions
-        position_values = {
-            symbol: position
-            * self.data_handler.get_latest_bars(symbol, N=1)["close"].values[0]
-            for (symbol, position) in self.current_positions
-        }
-        self._current_positions_value = sum(position_values.values())
+        if len(self.data_handler.get_loaded_symbols()) > 0:
+            # Update positions value if we have positions
+            position_values = {
+                symbol: position
+                * (self.data_handler.get_latest_bars(symbol, N=1)["close"].values[0])
+                for (symbol, position) in self.current_positions.items()
+            }
+            self._current_positions_value = sum(position_values.values())
+        else:
+            self._current_positions_value = 0
 
         # Update equity
-        self._current_equity == self.current_cash + self._current_positions_value
+        self._current_equity = self.current_cash + self._current_positions_value
 
     def append_portfolio_log(self, dt):
-        # Calculate most recent portfolio status
         self._update_holdings_from_market()
 
         self.portfolio_log.append(
@@ -79,7 +82,7 @@ class StandardPortfolio(Portfolio):
                 "equity": self._current_equity,
                 "cash": self.current_cash,
                 "positions_value": self._current_positions_value,
-                "positions": self.current_positions,
+                "positions": self.current_positions.copy(),
             }
         )
 
@@ -95,14 +98,14 @@ class StandardPortfolio(Portfolio):
 
     ### These functions should only be executed after the backtest
     def create_df_from_holdings_log(self):
-        df = pd.DataFrame(self.holdings_log)
+        df = pd.DataFrame(self.portfolio_log)
         df.set_index("datetime", inplace=True)
-        df["returns"] = df["total"].pct_change()
+        df["returns"] = df["equity"].pct_change()
         df["returns_cum"] = (1.0 + df["returns"]).cumprod() - 1
+        df = df.fillna(value=0)
         return df
 
     def output_summary_stats(self):
         df = self.create_df_from_holdings_log(self)
-        plot_fig(df)
 
         # TODO: stats

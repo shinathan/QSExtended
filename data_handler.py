@@ -14,17 +14,17 @@ class DataHandler:
     def __init__(self, events):
         self.events = events
         # A dictionary of a list of Series containing the most recent data. The reason why it is not a DataFrame is because then we have to build the DataFrame row-by-row. That is extremely slow. And most of the time you only need the last N bars.
-        self.latest_bars = {}
+        self._latest_bars = {}
 
     def get_latest_bars(self, symbol, N=1):
         """
-        Retrieve the latest bars for a specific symbol from self.latest_bars.
+        Retrieve the latest bars for a specific symbol from self._latest_bars.
         """
         raise Exception("This is just an interface! Use the implementation.")
 
     def update_bars(self):
         """
-        Retrieves the latest market data and puts it in self.latest_bars.
+        Retrieves the latest market data and puts it in self._latest_bars.
         In backtesting this is done with self.all_bars.
         In live trading this is done by an API call or streaming data.
         Then puts a MarketEvent in the queue.
@@ -35,7 +35,7 @@ class DataHandler:
 class HistoricalPolygonDataHandler(DataHandler):
     def __init__(self, events):
         self.events = events
-        self._latest_bars = {}
+        self._latest_bars = {}  # A FIFO queue with N length may be better
         self._all_bars = {}
 
     def load_data(
@@ -92,7 +92,10 @@ class HistoricalPolygonDataHandler(DataHandler):
         Returns:
             list: list of symbols
         """
-        return list(self._all_bars.keys())
+        if len(self._all_bars) == 0:
+            return list()
+        else:
+            return list(self._all_bars.keys())
 
     def update_bars(self, dt):
         """Simulates a passed minute by appending self.latest_bars and generating a MarketEvent.
@@ -102,7 +105,7 @@ class HistoricalPolygonDataHandler(DataHandler):
         """
         for symbol in self.get_loaded_symbols():
             try:
-                self.latest_bars[symbol].append(self._all_bars[symbol].loc[dt])
+                self._latest_bars[symbol].append(self._all_bars[symbol].loc[dt])
             except KeyError:
                 print(f"The symbol {symbol} has no data for {dt.isoformat()}.")
 
