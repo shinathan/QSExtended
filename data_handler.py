@@ -3,6 +3,7 @@ import pandas as pd
 from datetime import date
 from event import MarketEvent
 from polygon.data import get_data
+from polygon.times import get_market_minutes
 
 
 class DataHandler:
@@ -36,10 +37,24 @@ class DataHandler:
 
 
 class HistoricalPolygonDataHandler(DataHandler):
-    def __init__(self, events):
+    def __init__(self, events, start_date, end_date, extended_hours=True):
         self.events = events
+
         self._latest_bars = {}  # A FIFO queue with N length may be better
         self._all_bars = {}
+        self._clock = self._create_clock(start_date, end_date, extended_hours)
+        self.current_time = None
+
+    def _create_clock(self, start_date, end_date, extended_hours):
+        """A generator that yields the datetime. This simulates a clock.
+
+        Args:
+            start_date (Date): the start date
+            end_date (Date): the end date
+            extended_hours (bool): whether to include extended hours
+        """
+        for dt in get_market_minutes(start_date, end_date, extended_hours):
+            yield dt
 
     def load_data(
         self,
@@ -88,12 +103,16 @@ class HistoricalPolygonDataHandler(DataHandler):
         else:
             return list(self._all_bars.keys())
 
-    def update_bars(self, dt):
+    def next(self, dt):
         """Simulates a passed minute by appending self.latest_bars and generating a MarketEvent.
 
         Args:
             dt (Datetime): the datetime minute to which we update.
         """
+        # Update clock
+        self.current_time = next(self._clock)
+
+        # Update data
         for symbol in self.get_loaded_symbols():
             try:
                 self._latest_bars[symbol].append(self._all_bars[symbol].loc[dt])

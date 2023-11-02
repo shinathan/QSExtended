@@ -43,8 +43,8 @@ class Backtest:
     def _run_backtest(self):
         """
         REDESIGN:
-        -Instead of a infinite while loop, we loop through a clock. This guarantees that everything is aligned. And handles early closes etc. We must make sure it works with custom timeframes.
-        -Question: which component should house the 'clock', and how would it work in live trading?
+        -We should loop through a clock. This guarantees that everything is aligned. And handles early closes etc. We must make sure it works with custom timeframes.
+        -Question: which component should house the 'clock', and how would it work in live trading? We should not change the main logic when switching between backtest and live. Only the parts (broker/datahander/portfolio) should be changed. Else it is not modular.
         -Question: what is the most simple solution?
         -I will also add on_end_of_day, on_market_open, on_market_close, on_backtest_end
         """
