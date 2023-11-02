@@ -22,18 +22,19 @@ class SimulatedBroker(Broker):
         # This should estimate the broker commission AND the spread.
         # If you have access to PFOF brokers, only the spread is enough.
         # Don't forget slippage if you have a large account.
-        return max(1, quantity * 0.005) + price * 0.002
+        commission = max(1, quantity * 0.005)
+        spread = price * 0.002
+        return round(commission + spread, 2)
 
     def execute_order(self, event):
         if isinstance(event, OrderEvent):
-            current_bar = self.data_handler.get_latest_bars(event.symbol, N=1)
-            current_price = current_bar["close"].values[
-                0
-            ]  # TODO: option to get next open instead. That is essentially a 1-bar delay.
-            current_time = current_bar.index
+            current_price = self.data_handler.get_latest_bars(event.symbol, N=1).iloc[
+                -1
+            ]["close"]
+            # TODO: option to get next open instead. That is essentially a 1-bar delay.
 
             fill_event = FillEvent(
-                dt=current_time,
+                dt=self.data_handler.current_time,
                 symbol=event.symbol,
                 side=event.side,
                 quantity=event.quantity,

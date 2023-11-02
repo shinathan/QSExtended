@@ -1,11 +1,5 @@
-import datetime
-import numpy as np
+from datetime import datetime, time
 import pandas as pd
-import queue
-import performance
-
-from math import floor
-from event import FillEvent, OrderEvent
 
 
 class Portfolio:
@@ -39,7 +33,7 @@ class StandardPortfolio(Portfolio):
         self.portfolio_log = []  # list(dict(date, equity, cash, pos. value, positions))
         self.portfolio_log.append(
             {
-                "datetime": start_date,
+                "datetime": datetime.combine(start_date, time(0)),
                 "equity": self._current_equity,
                 "cash": self.current_cash,
                 "positions_value": self._current_positions_value,
@@ -77,12 +71,12 @@ class StandardPortfolio(Portfolio):
         # Update equity
         self._current_equity = self.current_cash + self._current_positions_value
 
-    def append_portfolio_log(self, dt):
+    def append_portfolio_log(self):
         self._update_holdings_from_market()
 
         self.portfolio_log.append(
             {
-                "datetime": dt,
+                "datetime": self.data_handler.current_time,
                 "equity": self._current_equity,
                 "cash": self.current_cash,
                 "positions_value": self._current_positions_value,
@@ -108,3 +102,7 @@ class StandardPortfolio(Portfolio):
         df["return_cum"] = (1.0 + df["return"]).cumprod() - 1
         df = df.fillna(value=0)
         return df
+
+    def create_df_from_fills_log(self):
+        df = pd.DataFrame(self.fills_log)
+        return df.set_index("datetime")

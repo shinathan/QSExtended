@@ -1,9 +1,9 @@
 import pandas as pd
 
-from datetime import date
-from event import MarketEvent
+from datetime import date, time
+from event import MarketEvent, MarketOpenEvent, MarketCloseEvent, BacktestEndEvent
 from polygon.data import get_data
-from polygon.times import get_market_minutes
+from polygon.times import get_market_minutes, get_market_calendar
 
 
 class DataHandler:
@@ -43,7 +43,12 @@ class HistoricalPolygonDataHandler(DataHandler):
         self._latest_bars = {}  # A FIFO queue with N length may be better
         self._all_bars = {}
         self._clock = self._create_clock(start_date, end_date, extended_hours)
-        self.current_time = None
+        self._time_to_stop = get_market_minutes(start_date, end_date, extended_hours)[
+            -1
+        ]
+
+        self.continue_backtest = True
+        self.current_time = next(self._clock)
 
     def _create_clock(self, start_date, end_date, extended_hours):
         """A generator that yields the datetime. This simulates a clock.
@@ -56,13 +61,40 @@ class HistoricalPolygonDataHandler(DataHandler):
         for dt in get_market_minutes(start_date, end_date, extended_hours):
             yield dt
 
+    def _check_time(self, timestamp):
+        """Check if a timestamp is a market open/market close
+
+        Args:
+            timestamp (datetime): the time to check
+
+        Returns:
+            list(Event): a list of scheduled events to process
+        """
+        calendar = get_market_calendar("datetime")
+        if timestamp.time() in [
+            time(9, 30),
+            time(15, 59),
+            time(19, 59),
+        ]:
+            day = timestamp.date()
+            scheduled_events = []
+            if timestamp == calendar.loc[day, "regular_open"]:
+                scheduled_events.append(MarketOpenEvent())
+            elif timestamp == calendar.loc[day, "regular_close"]:
+                scheduled_events.append(MarketCloseEvent())
+            if timestamp == self._time_to_stop:
+                scheduled_events.append(BacktestEndEvent())
+            return scheduled_events
+        else:
+            return list()
+
     def load_data(
         self,
         symbol,
-        start=date(2000, 1, 1),
-        end=date(2100, 1, 1),
+        start_date=date(2000, 1, 1),
+        end_date=date(2100, 1, 1),
         timeframe=1,
-        regular_hours_only=False,
+        extended_hours=True,
     ):
         """Loads the data. You should build your own 'get_data' function if you use another database. There should be no time gaps!
 
@@ -71,16 +103,16 @@ class HistoricalPolygonDataHandler(DataHandler):
             start (datetime/date, optional): the start date(time) (inclusive). Defaults to no bounds.
             end (datetime/date, optional): the end date(time) (inclusive). Defaults to no bounds.
             timeframe (str, optional): 1 for 1-minute, 5 for 5-minute. Defaults to daily bars.
-            regular_hours_only (bool, optional): Whether we need to remove extended hours. Defaults to False.
+            extended_hours (bool, optional): Whether we need to keep extended hours. Defaults to True.
         """
         self._latest_bars[symbol] = []
 
         self._all_bars[symbol] = get_data(
             symbol,
-            start=start,
-            end=end,
+            start_date=start_date,
+            end_date=end_date,
             timeframe=timeframe,
-            regular_hours_only=regular_hours_only,
+            extended_hours=extended_hours,
         )
 
     def unload_data(self, symbol):
@@ -103,7 +135,7 @@ class HistoricalPolygonDataHandler(DataHandler):
         else:
             return list(self._all_bars.keys())
 
-    def next(self, dt):
+    def next(self):
         """Simulates a passed minute by appending self.latest_bars and generating a MarketEvent.
 
         Args:
@@ -111,15 +143,26 @@ class HistoricalPolygonDataHandler(DataHandler):
         """
         # Update clock
         self.current_time = next(self._clock)
+        if self.current_time == self._time_to_stop:
+            self.continue_backtest = False
+
+        # Check if market open/market close.
+        scheduled_events = self._check_time(self.current_time)
+        for event in scheduled_events:
+            self.events.put(event)
 
         # Update data
         for symbol in self.get_loaded_symbols():
             try:
-                self._latest_bars[symbol].append(self._all_bars[symbol].loc[dt])
+                self._latest_bars[symbol].append(
+                    self._all_bars[symbol].loc[self.current_time]
+                )
             except KeyError:
-                print(f"The symbol {symbol} has no data for {dt.isoformat()}.")
+                print(
+                    f"The symbol {symbol} has no data for {self.current_time.isoformat()}."
+                )
 
-        self.events.put(MarketEvent(dt))
+        self.events.put(MarketEvent())
 
     def get_latest_bars(self, symbol, N=1):
         """Get the most recent bars

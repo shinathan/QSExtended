@@ -7,20 +7,17 @@ class Event:
 class MarketEvent(Event):
     """For when the time period (e.g. 1-minute) has passed. Only the DataHandler generates these."""
 
-    def __init__(self, dt):
-        self.datetime = dt
 
-
-class OnMarketClose(Event):
-    """For when the market closes (regular hours close)"""
-
-    pass
-
-
-class OnMarketOpen(Event):
+class MarketOpenEvent(Event):
     """For when the market open (regular hours open)"""
 
-    pass
+
+class MarketCloseEvent(Event):
+    """For when the market closes (regular hours close)"""
+
+
+class BacktestEndEvent(Event):
+    """For when we reach the end of the clock"""
 
 
 class OrderEvent(Event):

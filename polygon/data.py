@@ -33,10 +33,10 @@ def remove_extended_hours(bars):
 
 def get_data(
     ticker_or_id,
-    start=date(2000, 1, 1),
-    end=date(2100, 1, 1),
+    start_date=date(2000, 1, 1),
+    end_date=date(2100, 1, 1),
     timeframe="daily",
-    regular_hours_only=False,
+    extended_hours=False,
     location="processed",
     columns=[
         "open",
@@ -53,10 +53,10 @@ def get_data(
 
     Args:
         ticker_or_id (str): the ticker or ID
-        start (datetime/date, optional): the start date(time) (inclusive). Defaults to no bounds.
-        end (datetime/date, optional): the end date(time) (inclusive). Defaults to no bounds.
+        start_date (date, optional): the start date (inclusive). Defaults to no bounds.
+        end_date (date, optional): the end date (inclusive). Defaults to no bounds.
         timeframe (str, optional): 1 for 1-minute, 5 for 5-minute. Defaults to daily bars.
-        regular_hours_only (bool, optional): Whether we need to remove extended hours. Defaults to False.
+        extended_hours (bool, optional): Whether we need to include extended hours (not applicable to daily timeframes). Defaults to True.
         location (str): 'processed' or 'raw'. Defaults to 'processed'.
         columns (list): list of columns. Defaults to all.
 
@@ -74,20 +74,23 @@ def get_data(
     if timeframe in [1, 5]:
         dataset = pq.ParquetDataset(
             POLYGON_DATA_PATH + f"{location}/m{timeframe}/{id}.parquet",
-            filters=[("datetime", ">=", start), ("datetime", "<=", end)],
+            filters=[
+                ("datetime", ">=", datetime.combine(start_date, time(4))),
+                ("datetime", "<=", datetime.combine(end_date, time(20))),
+            ],
         )
     else:
         dataset = pq.ParquetDataset(
             POLYGON_DATA_PATH + f"{location}/d1/{id}.parquet",
             filters=[
-                ("datetime", ">=", start),
-                ("datetime", "<", end + timedelta(days=1)),
+                ("datetime", ">=", start_date),
+                ("datetime", "<", end_date + timedelta(days=1)),
             ],
         )
     df = dataset.read(columns=["datetime"] + columns).to_pandas()
 
     # Remove extended hours if necessary
-    if regular_hours_only and (timeframe in [1, 5]):
+    if not extended_hours and (timeframe in [1, 5]):
         return remove_extended_hours(df)
     else:
         return df

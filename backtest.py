@@ -2,6 +2,14 @@ import datetime
 import pprint
 import queue
 import time
+from event import (
+    MarketEvent,
+    MarketOpenEvent,
+    MarketCloseEvent,
+    FillEvent,
+    OrderEvent,
+    BacktestEndEvent,
+)
 
 
 class Backtest:
@@ -10,6 +18,7 @@ class Backtest:
         initial_capital,
         start_date,
         end_date,
+        extended_hours,
         strategy,
         data_handler,
         broker,
@@ -21,6 +30,7 @@ class Backtest:
             initial_capital (float): the starting capital in USD
             start_date (datetime): the start datetime
             end_date (datetime): the end datetime
+            extended_hours (bool): whether to include extended hours in the clock
             strategy (Strategy): the custom strategy
             data_handler (DataHandler): the data handler
             broker (Broker): the broker
@@ -30,29 +40,20 @@ class Backtest:
         self.initial_capital = initial_capital
         self.start_date = start_date
         self.end_date = end_date
+        self.extended_hours = extended_hours
 
         # The components of the backtester
         self.events = queue.Queue()  # List of events to handle
-        self.data_handler = data_handler(self.events)
+        self.data_handler = data_handler(
+            self.events, self.start_date, self.end_date, extended_hours
+        )
+        self.portfolio = portfolio(self.events, self.data_handler, self.start_date)
         self.strategy = strategy(self.events, self.data_handler, self.portfolio)
         self.broker = broker(self.events, self.data_handler)
-        self.portfolio = portfolio(self.events, self.data_handler, self.start_date)
-
-        self._generate_trading_instances()
 
     def _run_backtest(self):
-        """
-        REDESIGN:
-        -We should loop through a clock. This guarantees that everything is aligned. And handles early closes etc. We must make sure it works with custom timeframes.
-        -Question: which component should house the 'clock', and how would it work in live trading? We should not change the main logic when switching between backtest and live. Only the parts (broker/datahander/portfolio) should be changed. Else it is not modular.
-        -Question: what is the most simple solution?
-        -I will also add on_end_of_day, on_market_open, on_market_close, on_backtest_end
-        """
         while True:
-            if self.data_handler.continue_backtest == True:
-                self.data_handler.update_bars()  # Get most 'recent' bar
-            else:
-                break
+            self.data_handler.next()  # Step one bar
 
             while True:
                 try:
@@ -60,23 +61,26 @@ class Backtest:
                 except queue.Empty:
                     break
                 else:
-                    if event is not None:
-                        if event.type == "MARKET":
-                            self.strategy.calculate_signals(event)
-                            self.portfolio.update_timeindex(
-                                event
-                            )  # ? May not be necessary at every market data if there is no executional logic
-                        elif event.type == "ORDER":
-                            self.execution_handler.execute_order(event)
-                        elif event.type == "FILL":
-                            self.portfolio.update_fill(event)
-            time.sleep(self.heartbeat)  # ? Can become out of sync
+                    if isinstance(event, MarketEvent):
+                        self.strategy.calculate_signals()
+                    elif isinstance(event, BacktestEndEvent):
+                        self.strategy.on_backtest_end()
+                    elif isinstance(event, OrderEvent):
+                        self.broker.execute_order(event)
+                    elif isinstance(event, FillEvent):
+                        self.portfolio.update_from_fill(event)
+                    elif isinstance(event, MarketCloseEvent):
+                        self.portfolio.append_portfolio_log()
+                        print(self.data_handler.current_time.isoformat())
 
-    def _output_performance(self):
-        print("Creating summary stats...")
-        stats = self.portfolio.output_summary_stats()
-        print(stats)
+            if not self.data_handler.continue_backtest:
+                break
 
-    def simulate_trading(self):
+    def run(self):
         self._run_backtest()
-        self._output_performance()
+        self.portfolio.create_df_from_holdings_log().to_csv(
+            "output/buy_and_hold_holdings.csv"
+        )
+        self.portfolio.create_df_from_fills_log().to_csv(
+            "output/buy_and_hold_trades.csv"
+        )
