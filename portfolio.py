@@ -101,6 +101,9 @@ class StandardPortfolio(Portfolio):
         df["return"] = df["equity"].pct_change()
         df["return_cum"] = (1.0 + df["return"]).cumprod() - 1
         df = df.fillna(value=0)
+
+        df["return"] = round(df["return"] * 100, 2)
+        df["return_cum"] = round(df["return_cum"] * 100, 2)
         return df
 
     def create_df_from_fills_log(self):
