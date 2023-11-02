@@ -9,7 +9,11 @@ from event import FillEvent, OrderEvent
 
 
 class Portfolio:
-    """An interface to simulate a portfolio. The portfolio forwards the orders and keeps track of the administration. In real trading, rest API calls can be used. E.g. for getting the real equity."""
+    """An interface to simulate a portfolio. The portfolio forwards the orders and keeps track of the administration. In real trading, rest API calls can be used. E.g. for getting the real equity.
+
+    Generates: None
+    Handles: FillEvents
+    """
 
     def update_from_fill(self, event):
         # FillEvent -> update internals

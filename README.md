@@ -6,7 +6,7 @@ This is based on the QuantStart [tutorial](http://www.quantstart.com/articles/Ev
 
 This projects uses the database created here: [here](https://github.com/shinathan/polygon.io-stock-database). However, you can also individually download files and create a new class in DataHandler. Just make sure that there are no time gaps. Use forward fills.
 
-My focus will be on understandability and modularity rather than speed. One should be able to understand all lines of code after following a beginner/intermediate Python course. Then it should be simple to adjust it to your needs. 
+My focus will be on understandability and modularity rather than speed. One should be able to understand all lines of code after following a beginner/intermediate Python course. Then it should be simple to adjust it to your needs. It is recommended to follow the QuantStart tutorial. (They actually have two series, one is tick-based and one is OHLC-based. You should follow the old OHLC-based one.)
 
 ### Short overview of objects in the backtester
 * DataHandler: generates MarketEvents

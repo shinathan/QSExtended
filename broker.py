@@ -4,7 +4,10 @@ from event import FillEvent, OrderEvent
 
 
 class Broker:
-    """Interface for simulating the broker. The broker takes in Order Events and generates Fill Events."""
+    """Interface for simulating the broker.
+    Generates: FillEvents
+    Handles: OrderEvents
+    """
 
     def execute_order(self, event):
         raise Exception("This is just an interface! Use the implementation.")

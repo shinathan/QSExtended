@@ -9,6 +9,9 @@ class DataHandler:
     """
     The interface to handle all data needs for live and backtesting.
     The goal is to output OHLC data from the polygon database.
+
+    Generates: MarketEvents
+    Handles: None
     """
 
     def __init__(self, events):
