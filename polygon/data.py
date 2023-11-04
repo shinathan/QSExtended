@@ -63,6 +63,8 @@ def get_data(
     Returns:
         DataFrame: the output
     """
+    if not (isinstance(timeframe, int) or timeframe == "daily"):
+        raise ValueError("The input must be an integer or 'daily'!")
 
     # Determine if is ID or ticker
     if ticker_or_id[-1].isnumeric():

@@ -48,14 +48,21 @@ def get_market_calendar(format="time", timeframe=1):
         return market_hours
 
 
-def get_market_dates():
+def get_market_dates(start_date, end_date):
     """Get a list of market days from the market calendar
+
+    Args:
+        start_date (Date): the start date
+        end_date (Date): the end date
 
     Returns:
         list: list of Date objects
     """
-    market_hours = get_market_calendar()
-    return list(market_hours.index)
+    market_hours = get_market_calendar().index
+    market_hours = market_hours[
+        (market_hours >= start_date) & (market_hours <= end_date)
+    ]
+    return list(market_hours)
 
 
 @lru_cache

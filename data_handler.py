@@ -4,7 +4,7 @@ import numpy as np
 from datetime import date, time
 from event import MarketEvent, MarketCloseEvent, BacktestEndEvent
 from polygon.data import get_data
-from polygon.times import get_market_minutes, get_market_calendar
+from polygon.times import get_market_minutes, get_market_calendar, get_market_dates
 
 
 class DataHandler:
@@ -50,11 +50,13 @@ class HistoricalPolygonDataHandler(DataHandler):
         self._time_to_stop = None
         self._clock = self._initiate_clock(start_date, end_date, extended_hours)
 
-        self.calendar = get_market_calendar("datetime", self.timeframe)
-        # The potential times to check of scheduled events like market close. The reason we check times first is because for some reason this is much faster than checking the datetimes...
-        self._potential_scheduled_times = list(
-            np.unique(get_market_calendar("time", self.timeframe))
-        )
+        # On the intraday timeframes, we need the market calendar and scheduled events.
+        if isinstance(self.timeframe, int):
+            self.calendar = get_market_calendar("datetime", self.timeframe)
+            # The potential times to check of scheduled events like market close. The reason we check times first is because for some reason this is much faster than checking the datetimes...
+            self._potential_scheduled_times = list(
+                np.unique(get_market_calendar("time", self.timeframe))
+            )
 
         self.continue_backtest = True
 
@@ -70,11 +72,18 @@ class HistoricalPolygonDataHandler(DataHandler):
         Returns:
             generator: the clock generator
         """
-        market_minutes = get_market_minutes(
-            start_date, end_date, extended_hours, self.timeframe
-        )
+        # if self.timeframe is int, that means intraday
+        if isinstance(self.timeframe, int):
+            market_minutes = get_market_minutes(
+                start_date, end_date, extended_hours, self.timeframe
+            )
+        elif self.timeframe == "daily":
+            market_minutes = get_market_dates(start_date, end_date)
+            market_minutes = pd.to_datetime(market_minutes)
+
         self.current_time = market_minutes[0]
         self._time_to_stop = market_minutes[-1]
+
         return self._create_clock(market_minutes)
 
     def _create_clock(self, market_minutes):
@@ -83,9 +92,6 @@ class HistoricalPolygonDataHandler(DataHandler):
             yield dt
 
     def _check_time(self, timestamp):
-        # TODO: make this work for custom intraday bars
-        # m1: -1, m5: -5, m15: -15, d1: not applicable
-
         # In live trading this checks the real time with a predefined calendar.
         """Check if a timestamp is a market open/market close
 
@@ -96,15 +102,22 @@ class HistoricalPolygonDataHandler(DataHandler):
             list(Event): a list of scheduled events to process
         """
         scheduled_events = []
-        # The reason we check times first is because for some reason this is much faster than checking the datetime...
-        if timestamp.time() in self._potential_scheduled_times:
-            day = timestamp.date()
 
-            # The reason there is no MarketOpenEvent is because the open is always at 9:30 AM. That can be easily included in the Strategy itself.
+        if isinstance(self.timeframe, int):
+            # The reason we check times first is because for some reason this is much faster than checking the datetime...
+            if timestamp.time() in self._potential_scheduled_times:
+                day = timestamp.date()
 
-            if timestamp == self.calendar.loc[day, "regular_close"]:
-                scheduled_events.append(MarketCloseEvent())
+                # The reason there is no MarketOpenEvent is because the open is always at 9:30 AM. That can be easily included in the Strategy itself.
 
+                if timestamp == self.calendar.loc[day, "regular_close"]:
+                    scheduled_events.append(MarketCloseEvent())
+
+                if timestamp == self._time_to_stop:
+                    scheduled_events.append(BacktestEndEvent())
+        elif self.timeframe == "daily":
+            # For daily bars every bar is a market close.
+            scheduled_events.append(MarketCloseEvent())
             if timestamp == self._time_to_stop:
                 scheduled_events.append(BacktestEndEvent())
 
@@ -125,8 +138,8 @@ class HistoricalPolygonDataHandler(DataHandler):
             symbol (str): the ticker or ID
             start (datetime/date, optional): the start date(time) (inclusive). Defaults to no bounds.
             end (datetime/date, optional): the end date(time) (inclusive). Defaults to no bounds.
-            timeframe (str, optional): 1 for 1-minute, 5 for 5-minute. Defaults to daily bars.
-            extended_hours (bool, optional): Whether we need to keep extended hours. Defaults to True.
+            timeframe (str, optional): the timeframe of the bar in minutes or 'daily' for daily bars.
+            extended_hours (bool, optional): whether we need to keep extended hours. Defaults to True.
         """
         self._latest_bars[symbol] = []
 

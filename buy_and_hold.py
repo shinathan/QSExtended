@@ -20,9 +20,9 @@ class BuyAndHoldStrategy(Strategy):
         for symbol in self.symbol_list:
             self.data_handler.load_data(
                 symbol,
-                start_date=date(2020, 1, 1),
+                start_date=date(2023, 8, 1),
                 end_date=date(2023, 9, 1),
-                timeframe=5,
+                timeframe="daily",
                 extended_hours=False,
             )
 
@@ -69,7 +69,7 @@ backtest = Backtest(
     initial_capital=10000,
     start_date=date(2023, 8, 1),
     end_date=date(2023, 9, 1),
-    timeframe=5,
+    timeframe="daily",
     extended_hours=False,
     strategy=BuyAndHoldStrategy,
     data_handler=HistoricalPolygonDataHandler,

@@ -31,15 +31,18 @@ class StandardPortfolio(Portfolio):
 
         # These log the portfolio status and all transactions
         self.portfolio_log = []  # list(dict(date, equity, cash, pos. value, positions))
-        self.portfolio_log.append(
-            {
-                "datetime": datetime.combine(start_date, time(0)),
-                "equity": self._current_equity,
-                "cash": self.current_cash,
-                "positions_value": self._current_positions_value,
-                "positions": {},
-            }
-        )
+
+        if isinstance(self.data_handler.timeframe, int):
+            # If we use daily bars, we can skip the start of the portfolio log because the MarketCloseEvent and a bar coincide.
+            self.portfolio_log.append(
+                {
+                    "datetime": datetime.combine(start_date, time(0)),
+                    "equity": self._current_equity,
+                    "cash": self.current_cash,
+                    "positions_value": self._current_positions_value,
+                    "positions": {},
+                }
+            )
         self.fills_log = []  # list(dict(date, symbol, side, qty, fill, comm.))
 
     def update_from_fill(self, fill):
