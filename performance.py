@@ -35,9 +35,7 @@ def calculate_sharpe(portfolio_log, risk_free=0):
 def calculate_alpha_beta(returns, returns_benchmark, risk_free=0):
     returns = returns - risk_free / 252
     returns_benchmark = returns_benchmark - risk_free / 252
-    beta, alpha = stats.linregress(
-        returns_benchmark.dropna().values, returns.dropna().values
-    )[0:2]
+    beta, alpha = stats.linregress(returns_benchmark.dropna().values, returns.dropna().values)[0:2]
     return round(alpha, 2), round(beta, 2)
 
 
@@ -48,9 +46,7 @@ def calculate_alpha_beta_weekly(returns, returns_benchmark, risk_free=0):
     returns_benchmark = returns_benchmark - risk_free / 52
     returns_benchmark = returns_benchmark.resample("1W").last()
 
-    beta, alpha = stats.linregress(
-        returns_benchmark.dropna().values, returns.dropna().values
-    )[0:2]
+    beta, alpha = stats.linregress(returns_benchmark.dropna().values, returns.dropna().values)[0:2]
     return round(alpha, 2), round(beta, 2)
 
 
@@ -58,16 +54,14 @@ def calculate_drawdowns(portfolio_log):
     """
     Get drawdown Series, maximum DD and maximum duration
     """
-    returns = portfolio_log["return"]
+    returns = portfolio_log["return"] * 0.01
     cum_returns = (returns + 1).cumprod() - 1
     cum_returns_gross = cum_returns + 1
     maximum_gross_return = cum_returns_gross.cummax()
     drawdown = 1 - cum_returns_gross / maximum_gross_return
 
     ATH_series = drawdown[drawdown == 0]
-    durations = (
-        ATH_series.index[1:].to_pydatetime() - ATH_series.index[:-1].to_pydatetime()
-    )
+    durations = ATH_series.index[1:].to_pydatetime() - ATH_series.index[:-1].to_pydatetime()
 
     return -100 * drawdown, round(-100 * drawdown.max(), 3), durations.max()
 
@@ -105,9 +99,7 @@ def fills_to_trades(fills_log):
         fees = trade["fees"]
 
         current_position_in_symbol_opposite = trade_log[
-            (trade_log["symbol"] == symbol)
-            & (trade_log["side"] == opposite_side)
-            & (trade_log["remaining_qty"] > 0)
+            (trade_log["symbol"] == symbol) & (trade_log["side"] == opposite_side) & (trade_log["remaining_qty"] > 0)
         ]
         if len(current_position_in_symbol_opposite) == 0:
             # If no open trades in this symbol in the opposite direction, create new trade
@@ -128,9 +120,7 @@ def fills_to_trades(fills_log):
             # Else we (partially) close the trade(s) and create a new trade if a net position remains. Using FIFO.
             for index, open_trade in current_position_in_symbol_opposite.iterrows():
                 remaining_qty_open_trade = open_trade["remaining_qty"]
-                already_filled_qty_open_trade = (
-                    open_trade["quantity"] - open_trade["remaining_qty"]
-                )
+                already_filled_qty_open_trade = open_trade["quantity"] - open_trade["remaining_qty"]
                 current_average_fill = open_trade["exit"]
 
                 # Partial close of open_trade
@@ -139,8 +129,7 @@ def fills_to_trades(fills_log):
                         trade_log.loc[index, "exit"] = fill_price
                     else:
                         average_fill_exit = (
-                            (current_average_fill * already_filled_qty_open_trade)
-                            + (fill_price * quantity)
+                            (current_average_fill * already_filled_qty_open_trade) + (fill_price * quantity)
                         ) / (
                             already_filled_qty_open_trade + quantity
                         )  # Calculate new average fill
@@ -156,8 +145,7 @@ def fills_to_trades(fills_log):
                         trade_log.loc[index, "exit"] = fill_price
                     else:
                         average_fill_exit = (
-                            (current_average_fill * already_filled_qty_open_trade)
-                            + (fill_price * quantity)
+                            (current_average_fill * already_filled_qty_open_trade) + (fill_price * quantity)
                         ) / (
                             already_filled_qty_open_trade + quantity
                         )  # Calculate new average fill
@@ -170,9 +158,7 @@ def fills_to_trades(fills_log):
                     if quantity == remaining_qty_open_trade:
                         break  # We don't have to look at the next trade
                     else:
-                        quantity = (
-                            quantity - remaining_qty_open_trade
-                        )  # Calculate remaining quantity
+                        quantity = quantity - remaining_qty_open_trade  # Calculate remaining quantity
 
                         # If we are at the end and there is still a remaining quantity, that is a new position
                         if index == len(current_position_in_symbol_opposite) - 1:
@@ -189,6 +175,8 @@ def fills_to_trades(fills_log):
                                 np.nan,
                                 quantity,
                             ]
+        trade_log["datetime_in"] = pd.to_datetime(trade_log["datetime_in"])
+        trade_log["datetime_out"] = pd.to_datetime(trade_log["datetime_out"])
     return trade_log
 
 
@@ -203,16 +191,18 @@ def calculate_PNL_trade_log(trade_log):
     """
     trade_log["direction"] = np.where(trade_log["side"] == "BUY", 1, -1)
     trade_log["net P/L %"] = (
-        (
-            (trade_log["quantity"] - trade_log["remaining_qty"])
-            * trade_log["direction"]
-            * (trade_log["exit"] - trade_log["entry"])
+        100
+        * (
+            (
+                (trade_log["quantity"] - trade_log["remaining_qty"])
+                * trade_log["direction"]
+                * (trade_log["exit"] - trade_log["entry"])
+            )
+            - trade_log["fees"]
         )
-        - trade_log["fees"]
-    ) / trade_log["entry"]
-    trade_log["net P/L $"] = (
-        (trade_log["quantity"] - trade_log["remaining_qty"]) * trade_log["direction"]
-    ) * (trade_log["exit"] - trade_log["entry"]) - trade_log["fees"]
+        / (trade_log["entry"] * trade_log["quantity"])
+    )
+    trade_log["net P/L $"] = trade_log["net P/L %"] * 0.01 * (trade_log["entry"] * trade_log["quantity"])
     return trade_log.drop(columns=["direction"])
 
 
@@ -227,8 +217,7 @@ def calculate_time_in_market(portfolio_log):
         float: the percentage of days that the strategy is in the market
     """
     return round(
-        sum(portfolio_log["positions_value"] == 0)
-        / (portfolio_log.index[-1] - portfolio_log.index[0]).days,
+        sum(portfolio_log["positions_value"] == 0) / (portfolio_log.index[-1] - portfolio_log.index[0]).days,
         2,
     )
 
@@ -242,9 +231,7 @@ def calculate_average_trade_duration(trade_log):
     Returns:
         list(float, float, float): a list of the days, hours and minutes
     """
-    tdelta = (trade_log["datetime_out"] - trade_log["datetime_in"]).sum() / len(
-        trade_log
-    )
+    tdelta = (trade_log["datetime_out"] - trade_log["datetime_in"]).sum() / len(trade_log)
     days = tdelta.days
     hours = tdelta.seconds // 3600
     minutes = (tdelta.seconds // 60) % 60
@@ -278,7 +265,7 @@ def calculate_average_profit(trade_log):
     Returns:
         float: the value
     """
-    return trade_log["net P/L %"].mean()
+    return round(trade_log["net P/L %"].mean(), 2)
 
 
 def calculate_trades_per_month(portfolio_log, trade_log):
@@ -320,22 +307,18 @@ def calculate_winning_months(portfolio_log):
     """
     total_months = (portfolio_log.index[-1] - portfolio_log.index[0]).days / 30
     monthly_return = portfolio_log["return"].resample("1M").sum()
-    return round(
-        100 * monthly_return[monthly_return > 0].count() / len(monthly_return), 0
-    )
+    return round(100 * monthly_return[monthly_return > 0].count() / len(monthly_return), 0)
 
 
 def plot_fig(portfolio_log):
-    fig, (ax1, ax2, ax3) = plt.subplots(
-        nrows=3, gridspec_kw={"height_ratios": [2, 1, 1]}
-    )
+    fig, (ax1, ax2, ax3) = plt.subplots(nrows=3, gridspec_kw={"height_ratios": [2, 1, 1]})
     fig.suptitle("IBS", fontsize=16)
     fig.tight_layout(pad=1.5)
 
     # Returns
     ax1.plot(
         portfolio_log.index,
-        portfolio_log["return"] * 100,
+        portfolio_log["return_cum"] * 100,
         color="midnightblue",
         linewidth=1,
     )

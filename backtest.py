@@ -2,6 +2,8 @@ import datetime
 import pprint
 import queue
 import time
+import pandas as pd
+import performance
 from event import (
     MarketEvent,
     MarketCloseEvent,
@@ -14,6 +16,7 @@ from event import (
 class Backtest:
     def __init__(
         self,
+        name,
         initial_capital,
         start_date,
         end_date,
@@ -27,6 +30,7 @@ class Backtest:
         """Initializes the backtest.
 
         Args:
+            name (str): the name of the strategy (for storing results)
             initial_capital (float): the starting capital in USD
             start_date (datetime): the start datetime
             end_date (datetime): the end datetime
@@ -37,6 +41,8 @@ class Backtest:
             broker (Broker): the broker
             portfolio (Portfolio): the portfolio object
         """
+        self.name = name
+
         # The parameters of the backtest
         self.initial_capital = initial_capital
         self.start_date = start_date
@@ -46,9 +52,7 @@ class Backtest:
 
         # The components of the backtester
         self.events = queue.Queue()  # List of events to handle
-        self.data_handler = data_handler(
-            self.events, self.start_date, self.end_date, self.timeframe, extended_hours
-        )
+        self.data_handler = data_handler(self.events, self.start_date, self.end_date, self.timeframe, extended_hours)
         self.portfolio = portfolio(self.events, self.data_handler, self.start_date)
         self.strategy = strategy(self.events, self.data_handler, self.portfolio)
         self.broker = broker(self.events, self.data_handler)
@@ -74,7 +78,7 @@ class Backtest:
                     elif isinstance(event, MarketCloseEvent):
                         self.strategy.on_market_close()
                         self.portfolio.append_portfolio_log()
-                        print(self.data_handler.current_time.isoformat())
+                        # print(self.data_handler.current_time.isoformat())
 
             if not self.data_handler.continue_backtest:
                 break
@@ -83,10 +87,30 @@ class Backtest:
         # Run backtest
         self._run_backtest()
 
-        # Retrieve results
-        self.portfolio.create_df_from_holdings_log().to_csv(
-            "output/buy_and_hold_holdings.csv"
-        )
-        self.portfolio.create_df_from_fills_log().to_csv(
-            "output/buy_and_hold_trades.csv"
-        )
+        # Retrieve portfolio log and trade log
+        portfolio_log = self.portfolio.create_df_from_holdings_log()
+        portfolio_log.to_csv(f"output/{self.name}_portfolio_log.csv")
+        fills_log = self.portfolio.create_df_from_fills_log()
+        fills_log.to_csv(f"output/{self.name}_fills_log.csv")
+
+        # Create trade log from fill log
+        trade_log = performance.fills_to_trades(fills_log)
+        trade_log.to_csv(f"output/{self.name}_trade_log.csv")
+
+        # Create statistics from portfolio, fills and trade log.
+        statistics = {
+            "Annual return %": performance.calculate_annual_return(portfolio_log),
+            "Sharpe": performance.calculate_sharpe(portfolio_log),
+            "Sortina": performance.calculate_sortina(portfolio_log),
+            "Winning months %": performance.calculate_winning_months(portfolio_log),
+            "Time in market %": performance.calculate_time_in_market(portfolio_log),
+            "Average profit %": performance.calculate_average_profit(trade_log),
+            "Average duration per trade": f"{performance.calculate_average_trade_duration(trade_log)[0]}d{performance.calculate_average_trade_duration(trade_log)[1]}h{performance.calculate_average_trade_duration(trade_log)[2]}m",
+            "Profit factor": performance.calculate_profit_factor(trade_log),
+            "Trades/month": performance.calculate_trades_per_month(portfolio_log, trade_log),
+        }
+
+        print(statistics)
+
+        # Plot
+        performance.plot_fig(portfolio_log)

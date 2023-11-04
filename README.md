@@ -16,8 +16,8 @@ Added features
 * Scheduled events are now possible. These are MarketOpenEvent, MarketCloseEvent and BacktestEndEvent
 
 To do:
-* Make sure the backtester also works on 5-minute and daily data and not just on 1-minute bars.
 * Add working limit orders.
+* Add 'execution on next open' possibility.
 
 This projects uses the database created here: [here](https://github.com/shinathan/polygon.io-stock-database). However, you can also individually download files and create a new class in DataHandler. Just make sure that there are no time gaps. Use forward fills.
 

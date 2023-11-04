@@ -29,12 +29,10 @@ class OrderEvent(Event):
 
         self.direction = 1 if side == "BUY" else -1
 
-        self.print_order()
+        # self.print_order()
 
     def print_order(self):
-        print(
-            f"{self.datetime.isoformat()} | ORDER {self.side} {self.quantity} of {self.symbol}"
-        )
+        print(f"{self.datetime.isoformat()} | ORDER {self.side} {self.quantity} of {self.symbol}")
 
 
 class FillEvent(Event):
@@ -54,9 +52,7 @@ class FillEvent(Event):
         self.side = side
         self.quantity = quantity  # Always positive.
         self.fill_price = fill_price  # Always positive. Per share.
-        self.fees = (
-            fees  # The total amount of fees. A positive amount means we pay fees.
-        )
+        self.fees = fees  # The total amount of fees. A positive amount means we pay fees.
 
         self.total_fill = self.fill_price * self.quantity
         self.total_cost = self.total_fill + self.fees
