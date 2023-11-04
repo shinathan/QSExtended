@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 
 from datetime import date, time
-from event import MarketEvent, MarketOpenEvent, MarketCloseEvent, BacktestEndEvent
+from event import MarketEvent, MarketCloseEvent, BacktestEndEvent
 from polygon.data import get_data
 from polygon.times import get_market_minutes, get_market_calendar
 
@@ -25,22 +25,24 @@ class DataHandler:
         """
         Retrieve the latest bars for a specific symbol from self._latest_bars.
         """
-        raise Exception("This is just an interface! Use the implementation.")
+        raise NotImplementedError("This is just an interface! Use the implementation.")
 
-    def update_bars(self):
+    def next(self):
         """
+        Simulates a bar passing.
         Retrieves the latest market data and puts it in self._latest_bars.
         In backtesting this is done with self.all_bars.
         In live trading this is done by an API call or streaming data.
         Then puts a MarketEvent in the queue.
         """
-        raise Exception("This is just an interface! Use the implementation.")
+        raise NotImplementedError("This is just an interface! Use the implementation.")
 
 
 class HistoricalPolygonDataHandler(DataHandler):
-    def __init__(self, events, start_date, end_date, extended_hours=True):
+    def __init__(self, events, start_date, end_date, timeframe, extended_hours=True):
         self.events = events
 
+        self.timeframe = timeframe
         self._latest_bars = {}  # A FIFO queue with N length may be better
         self._all_bars = {}
 
@@ -48,9 +50,11 @@ class HistoricalPolygonDataHandler(DataHandler):
         self._time_to_stop = None
         self._clock = self._initiate_clock(start_date, end_date, extended_hours)
 
-        self._calendar = get_market_calendar("datetime")
+        self.calendar = get_market_calendar("datetime", self.timeframe)
         # The potential times to check of scheduled events like market close. The reason we check times first is because for some reason this is much faster than checking the datetimes...
-        self._potential_scheduled_times = list(np.unique(get_market_calendar("time")))
+        self._potential_scheduled_times = list(
+            np.unique(get_market_calendar("time", self.timeframe))
+        )
 
         self.continue_backtest = True
 
@@ -66,7 +70,9 @@ class HistoricalPolygonDataHandler(DataHandler):
         Returns:
             generator: the clock generator
         """
-        market_minutes = get_market_minutes(start_date, end_date, extended_hours)
+        market_minutes = get_market_minutes(
+            start_date, end_date, extended_hours, self.timeframe
+        )
         self.current_time = market_minutes[0]
         self._time_to_stop = market_minutes[-1]
         return self._create_clock(market_minutes)
@@ -96,7 +102,7 @@ class HistoricalPolygonDataHandler(DataHandler):
 
             # The reason there is no MarketOpenEvent is because the open is always at 9:30 AM. That can be easily included in the Strategy itself.
 
-            if timestamp == self._potential_scheduled_times.loc[day, "regular_close"]:
+            if timestamp == self.calendar.loc[day, "regular_close"]:
                 scheduled_events.append(MarketCloseEvent())
 
             if timestamp == self._time_to_stop:

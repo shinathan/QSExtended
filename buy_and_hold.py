@@ -8,7 +8,7 @@ from portfolio import StandardPortfolio
 
 
 class BuyAndHoldStrategy(Strategy):
-    # Buy and hold stocks in equal weight
+    # Buy and hold stocks in equal weight, sell everything at the end.
 
     def __init__(self, events, data_handler, portfolio, symbol_list=["SPY"]):
         self.events = events
@@ -20,9 +20,9 @@ class BuyAndHoldStrategy(Strategy):
         for symbol in self.symbol_list:
             self.data_handler.load_data(
                 symbol,
-                start_date=date(2023, 8, 1),
+                start_date=date(2020, 1, 1),
                 end_date=date(2023, 9, 1),
-                timeframe=1,
+                timeframe=5,
                 extended_hours=False,
             )
 
@@ -51,10 +51,15 @@ class BuyAndHoldStrategy(Strategy):
     def on_backtest_end(self):
         # Liquidate everything
         for symbol, position in self.portfolio.current_positions.items():
-            order = OrderEvent(
-                self.data_handler.current_time, symbol, side="SELL", quantity=position
-            )
-            self.events.put(order)
+            if position != 0:
+                action = "SELL" if position > 0 else "BUY"
+                order = OrderEvent(
+                    self.data_handler.current_time,
+                    symbol,
+                    side=action,
+                    quantity=position,
+                )
+                self.events.put(order)
 
     def on_market_close(self):
         pass
@@ -64,6 +69,7 @@ backtest = Backtest(
     initial_capital=10000,
     start_date=date(2023, 8, 1),
     end_date=date(2023, 9, 1),
+    timeframe=5,
     extended_hours=False,
     strategy=BuyAndHoldStrategy,
     data_handler=HistoricalPolygonDataHandler,

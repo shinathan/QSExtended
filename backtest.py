@@ -4,7 +4,6 @@ import queue
 import time
 from event import (
     MarketEvent,
-    MarketOpenEvent,
     MarketCloseEvent,
     FillEvent,
     OrderEvent,
@@ -18,6 +17,7 @@ class Backtest:
         initial_capital,
         start_date,
         end_date,
+        timeframe,
         extended_hours,
         strategy,
         data_handler,
@@ -30,6 +30,7 @@ class Backtest:
             initial_capital (float): the starting capital in USD
             start_date (datetime): the start datetime
             end_date (datetime): the end datetime
+            timeframe (int/str): the timeframe in minutes or 'daily'. Defaults to 1.
             extended_hours (bool): whether to include extended hours in the clock
             strategy (Strategy): the custom strategy
             data_handler (DataHandler): the data handler
@@ -40,12 +41,13 @@ class Backtest:
         self.initial_capital = initial_capital
         self.start_date = start_date
         self.end_date = end_date
+        self.timeframe = timeframe
         self.extended_hours = extended_hours
 
         # The components of the backtester
         self.events = queue.Queue()  # List of events to handle
         self.data_handler = data_handler(
-            self.events, self.start_date, self.end_date, extended_hours
+            self.events, self.start_date, self.end_date, self.timeframe, extended_hours
         )
         self.portfolio = portfolio(self.events, self.data_handler, self.start_date)
         self.strategy = strategy(self.events, self.data_handler, self.portfolio)
@@ -78,7 +80,10 @@ class Backtest:
                 break
 
     def run(self):
+        # Run backtest
         self._run_backtest()
+
+        # Retrieve results
         self.portfolio.create_df_from_holdings_log().to_csv(
             "output/buy_and_hold_holdings.csv"
         )

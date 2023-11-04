@@ -18,7 +18,7 @@ class Strategy:
         self.data_handler = data_handler
         self.portfolio = portfolio
 
-        # The **kwargs is for strategy parameters. For example the symbol list.
+        # The **kwargs is for strategy parameters. For example the symbol list or the indicator parameters.
 
     def calculate_signals(self):
         # Takes the latest market data and creates OrderEvents
