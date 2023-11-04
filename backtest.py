@@ -69,8 +69,6 @@ class Backtest:
                         self.broker.execute_order(event)
                     elif isinstance(event, FillEvent):
                         self.portfolio.update_from_fill(event)
-                    elif isinstance(event, MarketOpenEvent):
-                        self.strategy.on_market_open()
                     elif isinstance(event, MarketCloseEvent):
                         self.strategy.on_market_close()
                         self.portfolio.append_portfolio_log()

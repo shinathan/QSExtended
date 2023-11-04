@@ -49,12 +49,13 @@ class HistoricalPolygonDataHandler(DataHandler):
         self._clock = self._initiate_clock(start_date, end_date, extended_hours)
 
         self._calendar = get_market_calendar("datetime")
-        # The potential times to check of scheduled events like market close.
+        # The potential times to check of scheduled events like market close. The reason we check times first is because for some reason this is much faster than checking the datetimes...
         self._potential_scheduled_times = list(np.unique(get_market_calendar("time")))
 
         self.continue_backtest = True
 
     def _initiate_clock(self, start_date, end_date, extended_hours):
+        # This is obviously not necessary for live trading.
         """Sets the start and end time and initiates the clock
 
         Args:
@@ -78,6 +79,8 @@ class HistoricalPolygonDataHandler(DataHandler):
     def _check_time(self, timestamp):
         # TODO: make this work for custom intraday bars
         # m1: -1, m5: -5, m15: -15, d1: not applicable
+
+        # In live trading this checks the real time with a predefined calendar.
         """Check if a timestamp is a market open/market close
 
         Args:
@@ -86,14 +89,14 @@ class HistoricalPolygonDataHandler(DataHandler):
         Returns:
             list(Event): a list of scheduled events to process
         """
-        # The reason we check times first is because for some reason this is much faster than checking the datetime...
         scheduled_events = []
+        # The reason we check times first is because for some reason this is much faster than checking the datetime...
         if timestamp.time() in self._potential_scheduled_times:
             day = timestamp.date()
 
-            if timestamp == self._calendar.loc[day, "regular_open"]:
-                scheduled_events.append(MarketOpenEvent())
-            elif timestamp == self._calendar.loc[day, "regular_close"]:
+            # The reason there is no MarketOpenEvent is because the open is always at 9:30 AM. That can be easily included in the Strategy itself.
+
+            if timestamp == self._potential_scheduled_times.loc[day, "regular_close"]:
                 scheduled_events.append(MarketCloseEvent())
 
             if timestamp == self._time_to_stop:
@@ -109,6 +112,7 @@ class HistoricalPolygonDataHandler(DataHandler):
         timeframe=1,
         extended_hours=True,
     ):
+        # In live trading we either load this from a data vendor or broker.
         """Loads the data. You should build your own 'get_data' function if you use another database. There should be no time gaps!
 
         Args:

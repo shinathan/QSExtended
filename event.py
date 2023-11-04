@@ -8,12 +8,8 @@ class MarketEvent(Event):
     """For when the time period (e.g. 1-minute) has passed. Only the DataHandler generates these."""
 
 
-class MarketOpenEvent(Event):
-    """For when the market open (regular hours open)"""
-
-
 class MarketCloseEvent(Event):
-    """For when the market closes (regular hours close)"""
+    """For when the market closes (regular hours close). Beware of early closes."""
 
 
 class BacktestEndEvent(Event):
