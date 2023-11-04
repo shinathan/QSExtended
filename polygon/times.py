@@ -10,11 +10,13 @@ POLYGON_DATA_PATH = "../data/polygon/"
 
 
 @lru_cache
-def get_market_calendar(format="time"):
+def get_market_calendar(format="time", timeframe=1):
     """Retrieves the market hours
 
     Args:
         format (string): "time" or "datetime". If datetime, the columns are datetime objects. Else time objects.
+        timeframe (int): the timeframe of the bars in minutes. Defaults to 1.
+
     Returns:
         DataFrame: the index contains Date objects and the columns Time objects.
     """
@@ -22,43 +24,28 @@ def get_market_calendar(format="time"):
         POLYGON_DATA_PATH + "../market/market_calendar.csv", index_col=0
     )
     market_hours.index = pd.to_datetime(market_hours.index).date
-    market_hours.premarket_open = pd.to_datetime(
-        market_hours.premarket_open, format="%H:%M:%S"
-    ).dt.time
-    market_hours.regular_open = pd.to_datetime(
-        market_hours.regular_open, format="%H:%M:%S"
-    ).dt.time
-    market_hours.regular_close = pd.to_datetime(
-        market_hours.regular_close, format="%H:%M:%S"
-    ).dt.time
-    market_hours.postmarket_close = pd.to_datetime(
-        market_hours.postmarket_close, format="%H:%M:%S"
-    ).dt.time
-    if format == "time":
-        return market_hours
 
-    elif format == "datetime":
-        market_hours.premarket_open = pd.to_datetime(
-            market_hours.index.astype(str)
-            + " "
-            + market_hours.premarket_open.astype(str)
+    # Get datetime objects from the date and time
+    for col in market_hours.columns:
+        market_hours[col] = pd.to_datetime(
+            market_hours.index.astype(str) + " " + market_hours[col].astype(str)
         )
-        market_hours.regular_open = pd.to_datetime(
-            market_hours.index.astype(str) + " " + market_hours.regular_open.astype(str)
-        )
-        market_hours.regular_close = pd.to_datetime(
-            market_hours.index.astype(str)
-            + " "
-            + market_hours.regular_close.astype(str)
-        )
-        market_hours.postmarket_close = pd.to_datetime(
-            market_hours.index.astype(str)
-            + " "
-            + market_hours.postmarket_close.astype(str)
-        )
+
+    # # Round down if timeframe is not 1 minute
+    market_hours["regular_close"] = market_hours["regular_close"].dt.floor(
+        f"{timeframe}min"
+    )
+    market_hours["postmarket_close"] = market_hours["postmarket_close"].dt.floor(
+        f"{timeframe}min"
+    )
+
+    # Return time only if specified
+    if format == "datetime":
         return market_hours
-    else:
-        raise Exception("Input must be 'time' or 'datetime'!")
+    elif format == "time":
+        for col in market_hours.columns:
+            market_hours[col] = market_hours[col].dt.time
+        return market_hours
 
 
 def get_market_dates():
@@ -72,14 +59,14 @@ def get_market_dates():
 
 
 @lru_cache
-def get_market_minutes(start_date, end_date, extended_hours=True):
+def get_market_minutes(start_date, end_date, extended_hours=True, timeframe=1):
     """Get a DatetimeIndex of trading minutes
 
     Args:
         start_date (Date): the start date
         end_date (Date): the end date
         extended_hours (bool, optional): whether to include extended hours. Defaults to True.
-
+        timeframe (int): the length in minutes of the bars. Defaults to 1.
     Returns:
         DatetimeIndex: the result
     """
@@ -87,19 +74,26 @@ def get_market_minutes(start_date, end_date, extended_hours=True):
         POLYGON_DATA_PATH + "../market/trading_minutes.parquet"
     )
     trading_datetimes = pd.to_datetime(trading_datetimes.index)
+    trading_datetimes = pd.DataFrame(index=trading_datetimes)
+
     # Filter for start to end date
     trading_datetimes = trading_datetimes[
-        (trading_datetimes >= datetime.combine(start_date, time(4)))
-        & (trading_datetimes <= datetime.combine(end_date, time(19, 59)))
+        (trading_datetimes.index >= datetime.combine(start_date, time(4)))
+        & (trading_datetimes.index <= datetime.combine(end_date, time(19, 59)))
     ]
-    if extended_hours:
-        return trading_datetimes
-    else:
-        # If we import this in the first line, we have a circular import error
-        from polygon.data import remove_extended_hours
 
-        trading_datetimes = pd.DataFrame(index=trading_datetimes)
-        return pd.to_datetime(remove_extended_hours(trading_datetimes).index)
+    # Remove extended hours if necessary
+    if not extended_hours:
+        from polygon.data import remove_extended_hours  # Avoid circular import
+
+        trading_datetimes = remove_extended_hours(trading_datetimes)
+
+    # Resample if necessary. The reason we do not use .resample() is because it also fills gaps with missing data.
+    return (
+        trading_datetimes.groupby(trading_datetimes.index.floor(f"{timeframe}Min"))
+        .last()
+        .index
+    )
 
 
 def first_trading_date_after_equal(dt):
