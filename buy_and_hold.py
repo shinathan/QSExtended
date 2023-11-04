@@ -56,6 +56,12 @@ class BuyAndHoldStrategy(Strategy):
             )
             self.events.put(order)
 
+    def on_market_open(self):
+        pass
+
+    def on_market_close(self):
+        pass
+
 
 backtest = Backtest(
     initial_capital=10000,

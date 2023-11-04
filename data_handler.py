@@ -42,23 +42,32 @@ class HistoricalPolygonDataHandler(DataHandler):
 
         self._latest_bars = {}  # A FIFO queue with N length may be better
         self._all_bars = {}
-        self._clock = self._create_clock(start_date, end_date, extended_hours)
-        self._time_to_stop = get_market_minutes(start_date, end_date, extended_hours)[
-            -1
-        ]
+
+        self.current_time = None
+        self._time_to_stop = None
+        self._clock = self._initiate_clock(start_date, end_date, extended_hours)
 
         self.continue_backtest = True
-        self.current_time = next(self._clock)
 
-    def _create_clock(self, start_date, end_date, extended_hours):
-        """A generator that yields the datetime. This simulates a clock.
+    def _initiate_clock(self, start_date, end_date, extended_hours):
+        """Sets the start and end time and initiates the clock
 
         Args:
             start_date (Date): the start date
             end_date (Date): the end date
             extended_hours (bool): whether to include extended hours
+
+        Returns:
+            generator: the clock generator
         """
-        for dt in get_market_minutes(start_date, end_date, extended_hours):
+        market_minutes = get_market_minutes(start_date, end_date, extended_hours)
+        self.current_time = market_minutes[0]
+        self._time_to_stop = market_minutes[-1]
+        return self._create_clock(market_minutes)
+
+    def _create_clock(self, market_minutes):
+        """A generator that yields the datetime. This simulates a clock."""
+        for dt in market_minutes:
             yield dt
 
     def _check_time(self, timestamp):
@@ -71,8 +80,9 @@ class HistoricalPolygonDataHandler(DataHandler):
             list(Event): a list of scheduled events to process
         """
         calendar = get_market_calendar("datetime")
+        # The reason we check times first is because of speed.
         if timestamp.time() in [
-            time(9, 30),
+            time(9, 29),
             time(15, 59),
             time(19, 59),
         ]:

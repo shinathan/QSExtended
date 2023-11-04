@@ -7,7 +7,7 @@ This is based on the QuantStart [tutorial](http://www.quantstart.com/articles/Ev
 Simplifications:
 * SignalsEvents are removed. The Strategy now directly sends OrderEvents to the Broker.
 * Also, the Portfolio code is drastically simplified. There are now 2 groups of values: positions and holdings (USD value). The first always changes with fills while the holdings can be updated when necessary (e.g. end of day).
-* ExecutionHandler is named to Broker. 
+* ExecutionHandler is renamed to Broker. 
 * Order and Fills now are more consistent with eachother. Quantity is always positive for both.
 And a lot of functions have been renamed and removed unless strictly necessary.
 
