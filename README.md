@@ -16,8 +16,10 @@ Added features
 * Scheduled events are now possible. These are MarketOpenEvent, MarketCloseEvent and BacktestEndEvent
 
 To do list
-* Add working limit orders.
+* Implement the strategies from the book in my own version of the backtester
 * Add 'execution on next open' possibility.
+* Add working limit orders.
+* The above two are both conditional orders. The only difference is which condition. I should make a general conditional order class, inheriting OrderEvent.
 
 This projects uses the database created here: [here](https://github.com/shinathan/polygon.io-stock-database). However, you can also individually download files and create a new class in DataHandler. Just make sure that there are no time gaps. Use forward fills.
 

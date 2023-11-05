@@ -87,7 +87,9 @@ class Backtest:
     def run(self):
         # Run backtest
         self._run_backtest()
+        self._process_results()
 
+    def _process_results(self):
         # Retrieve portfolio log and trade log
         portfolio_log = self.portfolio.create_df_from_holdings_log()
         portfolio_log.to_csv(f"output/{self.name}_portfolio_log.csv")
