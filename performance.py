@@ -181,6 +181,7 @@ def fills_to_trades(fills_log):
                             ]
         trade_log["datetime_in"] = pd.to_datetime(trade_log["datetime_in"])
         trade_log["datetime_out"] = pd.to_datetime(trade_log["datetime_out"])
+        trade_log["fees"] = round(trade_log["fees"], 2)
     return calculate_PNL_trade_log(trade_log)
 
 
@@ -206,6 +207,9 @@ def calculate_PNL_trade_log(trade_log):
         / (trade_log["entry"] * trade_log["quantity"])
     )
     trade_log["net P/L $"] = trade_log["net P/L %"] * 0.01 * (trade_log["entry"] * trade_log["quantity"])
+
+    trade_log["net P/L %"] = round(trade_log["net P/L %"], 2)
+    trade_log["net P/L $"] = round(trade_log["net P/L $"], 2)
     return trade_log.drop(columns=["direction"])
 
 
@@ -220,7 +224,7 @@ def calculate_time_in_market(portfolio_log):
         float: the percentage of days that the strategy is in the market. Base 100.
     """
     trading_days_in_market = sum((portfolio_log["positions_value"] != 0))
-    total_market_days = (portfolio_log.index[-1] - portfolio_log.index[0]).days
+    total_market_days = len(portfolio_log)
     fraction_in_market = trading_days_in_market / total_market_days
     return round(fraction_in_market * 100, 0)
 
