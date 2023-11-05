@@ -54,9 +54,7 @@ class HistoricalPolygonDataHandler(DataHandler):
         if isinstance(self.timeframe, int):
             self.calendar = get_market_calendar("datetime", self.timeframe)
             # The potential times to check of scheduled events like market close. The reason we check times first is because for some reason this is much faster than checking the datetimes...
-            self._potential_scheduled_times = list(
-                np.unique(get_market_calendar("time", self.timeframe))
-            )
+            self._potential_scheduled_times = list(np.unique(get_market_calendar("time", self.timeframe)))
 
         self.continue_backtest = True
 
@@ -74,9 +72,7 @@ class HistoricalPolygonDataHandler(DataHandler):
         """
         # if self.timeframe is int, that means intraday
         if isinstance(self.timeframe, int):
-            market_minutes = get_market_minutes(
-                start_date, end_date, extended_hours, self.timeframe
-            )
+            market_minutes = get_market_minutes(start_date, end_date, extended_hours, self.timeframe)
         elif self.timeframe == "daily":
             market_minutes = get_market_dates(start_date, end_date)
             market_minutes = pd.to_datetime(market_minutes)
@@ -192,13 +188,9 @@ class HistoricalPolygonDataHandler(DataHandler):
         for symbol in self.get_loaded_symbols():
             try:
                 # By the way, dictionary lookup is O(1) so we do not need to worry about speed for large dataframes.
-                self._latest_bars[symbol].append(
-                    self._all_bars[symbol].loc[self.current_time]
-                )
+                self._latest_bars[symbol].append(self._all_bars[symbol].loc[self.current_time])
             except KeyError:
-                print(
-                    f"The symbol {symbol} has no data for {self.current_time.isoformat()}."
-                )
+                print(f"The symbol {symbol} has no data for {self.current_time.isoformat()}.")
 
         self.events.put(MarketEvent())
 
