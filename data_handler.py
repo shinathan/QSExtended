@@ -119,6 +119,14 @@ class HistoricalPolygonDataHandler(DataHandler):
 
         return scheduled_events
 
+    def get_current_market_close_time(self):
+        """Gets the market close time
+
+        Returns:
+            datetime: the market close time
+        """
+        return self.calendar.loc[self.current_time.date(), "regular_close"]
+
     def load_data(
         self,
         symbol,
@@ -193,6 +201,15 @@ class HistoricalPolygonDataHandler(DataHandler):
                 print(f"The symbol {symbol} has no data for {self.current_time.isoformat()}.")
 
         self.events.put(MarketEvent())
+
+    def skip_to_future(self, dt):
+        """Sets the clock to a specific time to avoid unnecessary looping. Use with caution. This does not load data.
+
+        Args:
+            dt (datetime): the datetime to which to skip to
+        """
+        while self.current_time < dt:
+            self.current_time = next(self._clock)
 
     def get_latest_bars(self, symbol, N=1):
         """Get the most recent bars

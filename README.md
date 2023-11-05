@@ -15,10 +15,7 @@ Added features
 * The backtester works even if there is no data supplied. There is now an independent 'clock'. This means that it is possible to dynamically load/unload data. This is handy if the asset universe is dynamic.
 * Scheduled events are now possible. These are MarketOpenEvent, MarketCloseEvent and BacktestEndEvent
 
-Currently doing
-* Fix the "time in market" statistic. Buy and hold should be 100.0%.
-
-On to do list
+To do list
 * Add working limit orders.
 * Add 'execution on next open' possibility.
 

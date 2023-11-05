@@ -79,6 +79,7 @@ class Backtest:
                         self.strategy.on_market_close()
                         self.portfolio.append_portfolio_log()
                         # print(self.data_handler.current_time.isoformat())
+                        # print(self.portfolio._current_equity)
 
             if not self.data_handler.continue_backtest:
                 break
