@@ -4,3 +4,4 @@ data/
 results.csv
 transaction_log.csv
 other/
+.vscode/

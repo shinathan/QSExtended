@@ -1,2 +1,2 @@
 ,datetime_in,symbol,side,quantity,entry,exit,datetime_out,fees,net P/L %,net P/L $,remaining_qty
-0,2023-01-03,SPY,BUY,26,377.9872,451.21,2023-09-01,3.66,,,0
+0,2020-01-02,SPY,BUY,32,307.3495,451.21,2023-09-01,3.51,46.771122939845355,4600.026,0

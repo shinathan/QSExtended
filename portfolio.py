@@ -63,8 +63,7 @@ class StandardPortfolio(Portfolio):
         if len(self.data_handler.get_loaded_symbols()) > 0:
             # Update positions value if we have positions
             position_values = {
-                symbol: position
-                * (self.data_handler.get_latest_bars(symbol, N=1)["close"].values[0])
+                symbol: position * (self.data_handler.get_latest_bars(symbol, N=1)["close"].values[0])
                 for (symbol, position) in self.current_positions.items()
             }
             self._current_positions_value = sum(position_values.values())
@@ -99,10 +98,14 @@ class StandardPortfolio(Portfolio):
 
     ### These functions should only be executed after the backtest
     def create_df_from_holdings_log(self):
+        """Creates a DataFrame from portfolio_log. Percentages are base 100 for readability."""
         df = pd.DataFrame(self.portfolio_log)
         df.set_index("datetime", inplace=True)
         df["return"] = df["equity"].pct_change()
         df["return_cum"] = (1.0 + df["return"]).cumprod() - 1
+
+        df["return"] = df["return"] * 100
+        df["return_cum"] = df["return_cum"] * 100
         df = df.fillna(value=0)
 
         df[["equity", "cash", "positions_value", "return", "return_cum"]] = round(

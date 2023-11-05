@@ -11,23 +11,25 @@ from scipy import stats
 
 
 def calculate_annual_return(portfolio_log):
-    returns = portfolio_log["return"]
-    cum_returns_gross = (returns + 1).cumprod() - 1
-    total_length = returns.index[-1] - returns.index[0]
+    # In percentage (base 100)
+    cum_returns_gross = portfolio_log["return_cum"] * 0.01 + 1
+    total_length = portfolio_log.index[-1] - portfolio_log.index[0]
     annual_return = (cum_returns_gross[-1]) ** (1 / (total_length.days / 365)) - 1
-    return round(100 * annual_return, 1)
+    return round(annual_return * 100, 1)
 
 
 def calculate_sortina(portfolio_log, risk_free=0):
-    returns = portfolio_log["return"]
-    annual_mean = returns.mean() * 252 - risk_free
+    # Riskfree also in base 100 percentage.
+    returns = portfolio_log["return"] * 0.01
+    annual_mean = (calculate_annual_return(portfolio_log) - risk_free) * 0.01
     annual_downward_std = returns[returns < 0].std() * np.sqrt(252)
     return round(annual_mean / annual_downward_std, 2)
 
 
 def calculate_sharpe(portfolio_log, risk_free=0):
-    returns = portfolio_log["return"]
-    annual_mean = returns.mean() * 252 - risk_free
+    # Riskfree also in base 100 percentage.
+    returns = portfolio_log["return"] * 0.01
+    annual_mean = (calculate_annual_return(portfolio_log) - risk_free) * 0.01
     annual_downward_std = returns.std() * np.sqrt(252)
     return round(annual_mean / annual_downward_std, 2)
 
@@ -52,18 +54,20 @@ def calculate_alpha_beta_weekly(returns, returns_benchmark, risk_free=0):
 
 def calculate_drawdowns(portfolio_log):
     """
-    Get drawdown Series, maximum DD and maximum duration
+    Get drawdown Series, maximum DD and maximum duration. Base 100 for percentages.
+
+    Returns:
+        (Series, float, datetime)
     """
-    returns = portfolio_log["return"] * 0.01
-    cum_returns = (returns + 1).cumprod() - 1
-    cum_returns_gross = cum_returns + 1
+    cum_returns_gross = portfolio_log["return_cum"] * 0.01 + 1
     maximum_gross_return = cum_returns_gross.cummax()
     drawdown = 1 - cum_returns_gross / maximum_gross_return
 
     ATH_series = drawdown[drawdown == 0]
     durations = ATH_series.index[1:].to_pydatetime() - ATH_series.index[:-1].to_pydatetime()
+    drawdown = round(drawdown, 3)
 
-    return -100 * drawdown, round(-100 * drawdown.max(), 3), durations.max()
+    return drawdown * 100, drawdown.max() * 100, durations.max()
 
 
 def fills_to_trades(fills_log):
@@ -177,12 +181,11 @@ def fills_to_trades(fills_log):
                             ]
         trade_log["datetime_in"] = pd.to_datetime(trade_log["datetime_in"])
         trade_log["datetime_out"] = pd.to_datetime(trade_log["datetime_out"])
-    return trade_log
+    return calculate_PNL_trade_log(trade_log)
 
 
 def calculate_PNL_trade_log(trade_log):
-    """Calculate the PNL for the trade log
-
+    """Calculate the PNL for the trade log. Percentages in base 100.
     Args:
         trade_log (DataFrame): the trade log
 
@@ -207,19 +210,19 @@ def calculate_PNL_trade_log(trade_log):
 
 
 def calculate_time_in_market(portfolio_log):
-    """Calculates the percentage of days that the portfolio is in the market.
-    A 1% position also counts.
+    """Calculates the percentage of trading days that the portfolio is in the market.
+    A 1% position on a day counts as one whole day.
 
     Args:
         portfolio_log (DataFrame): the portfolio log
 
     Returns:
-        float: the percentage of days that the strategy is in the market
+        float: the percentage of days that the strategy is in the market. Base 100.
     """
-    return round(
-        sum(portfolio_log["positions_value"] == 0) / (portfolio_log.index[-1] - portfolio_log.index[0]).days,
-        2,
-    )
+    trading_days_in_market = sum((portfolio_log["positions_value"] != 0))
+    total_market_days = (portfolio_log.index[-1] - portfolio_log.index[0]).days
+    fraction_in_market = trading_days_in_market / total_market_days
+    return round(fraction_in_market * 100, 0)
 
 
 def calculate_average_trade_duration(trade_log):
@@ -239,7 +242,7 @@ def calculate_average_trade_duration(trade_log):
 
 
 def calculate_fees_drag(portfolio_log, fills_log):
-    """Calculates the fees drag per year
+    """Calculates the fees drag per year. Percentage in base 100.
 
     Args:
         portfolio_log (DataFrame): the portfolio log
@@ -253,11 +256,12 @@ def calculate_fees_drag(portfolio_log, fills_log):
     total_years = (portfolio_log.index[-1] - portfolio_log.index[0]).days / 365
 
     fraction_of_fees = total_fees / average_equity
-    return round(100 * fraction_of_fees / total_years, 1)
+    fraction_of_fees_per_year = fraction_of_fees / total_years
+    return round(fraction_of_fees_per_year * 100, 1)
 
 
 def calculate_average_profit(trade_log):
-    """Calculates average profit per trade
+    """Calculates average profit per trade. Percentages in base 100.
 
     Args:
         trade_log (DataFrame): the trade log
@@ -278,7 +282,8 @@ def calculate_trades_per_month(portfolio_log, trade_log):
     Returns:
         float: the value
     """
-    total_months = (portfolio_log.index[-1] - portfolio_log.index[0]).days / 30
+    # There are on average 21 trading days per month.
+    total_months = (portfolio_log.index[-1] - portfolio_log.index[0]).days / 21
     return round(len(trade_log) / total_months, 1)
 
 
@@ -297,7 +302,7 @@ def calculate_profit_factor(trade_log):
 
 
 def calculate_winning_months(portfolio_log):
-    """Calculate percentage of winning months
+    """Calculate percentage of winning months. Percentage in base 100.
 
     Args:
         portfolio_log (DataFrame): the portfolio log
@@ -318,7 +323,7 @@ def plot_fig(portfolio_log):
     # Returns
     ax1.plot(
         portfolio_log.index,
-        portfolio_log["return_cum"] * 100,
+        portfolio_log["return_cum"],
         color="midnightblue",
         linewidth=1,
     )
@@ -326,8 +331,8 @@ def plot_fig(portfolio_log):
     ax1.set_title("Total return", fontsize=10, fontweight="bold")
 
     # Drawdown
-    drawdowns, max_dd, max_dd_duration = calculate_drawdowns(portfolio_log)
-    ax2.plot(drawdowns.index, drawdowns * 100, color="firebrick", linewidth=1)
+    drawdowns, _, _ = calculate_drawdowns(portfolio_log)
+    ax2.plot(drawdowns.index, -drawdowns, color="firebrick", linewidth=1)
     ax2.yaxis.set_major_formatter(mtick.PercentFormatter(decimals=0))
     ax2.set_title("Drawdown", fontsize=10, fontweight="bold")
 
@@ -338,7 +343,7 @@ def plot_fig(portfolio_log):
     monthly_return_index[0] = portfolio_log.index[0]  # To make the x-axis align
     monthly_return_index[-1] = portfolio_log.index[-1]  # To make the x-axis align
 
-    ax3.bar(monthly_return.index, monthly_return.values * 100, width=15, color=colors)
+    ax3.bar(monthly_return.index, monthly_return.values, width=15, color=colors)
     ax3.yaxis.set_major_formatter(mtick.PercentFormatter(decimals=0))
     ax3.set_title("Monthly returns", fontsize=10, fontweight="bold")
 
