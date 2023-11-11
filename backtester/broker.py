@@ -21,7 +21,7 @@ class SimulatedBroker(Broker):
         # If you have access to PFOF brokers, only the spread is enough.
         # Don't forget slippage if you have a large account.
         commission = max(1, quantity * 0.005)
-        spread = price * 0.002
+        spread = price * quantity * 0.001
         return round(commission + spread, 2)
 
     def execute_order(self, event):

@@ -107,6 +107,7 @@ class Backtest:
             "Average duration per trade": f"{performance.calculate_average_trade_duration(trade_log)[0]}d{performance.calculate_average_trade_duration(trade_log)[1]}h{performance.calculate_average_trade_duration(trade_log)[2]}m",
             "Profit factor": performance.calculate_profit_factor(trade_log),
             "Trades/month": performance.calculate_trades_per_month(portfolio_log, trade_log),
+            "Annual fees %": performance.calculate_fees_drag(portfolio_log, fills_log),
         }
 
         print(statistics)
