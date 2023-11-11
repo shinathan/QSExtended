@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 
 from datetime import date, time
-from event import MarketEvent, MarketCloseEvent, BacktestEndEvent
+from backtester.event import MarketEvent, MarketCloseEvent, BacktestEndEvent
 from polygon.data import get_data
 from polygon.times import get_market_minutes, get_market_calendar, get_market_dates
 
@@ -187,7 +187,7 @@ class HistoricalPolygonDataHandler(DataHandler):
             self.continue_backtest = False
 
         # Check if market open/market close.
-        # Note: Only the market close/backtest end is necessary because these cannot be easily checked. For convenience the market open is then also added. However other scheduled events can be programmed in the Strategy itself easily by checking the current_time.
+        # Note: Only the market close/backtest end is necessary because these cannot be easily checked because they are variable. However other scheduled events can be programmed in the Strategy itself easily by checking the current_time.
         scheduled_events = self._check_time(self.current_time)
         for event in scheduled_events:
             self.events.put(event)

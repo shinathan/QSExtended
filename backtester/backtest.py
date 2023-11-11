@@ -1,10 +1,6 @@
-import datetime
-import pprint
 import queue
-import time
-import pandas as pd
-import performance
-from event import (
+import backtester.performance as performance
+from backtester.event import (
     MarketEvent,
     MarketCloseEvent,
     FillEvent,

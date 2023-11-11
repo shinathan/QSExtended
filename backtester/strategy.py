@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import queue
 
-from event import OrderEvent
+from backtester.event import OrderEvent
 
 
 class Strategy:

@@ -2,7 +2,7 @@
 
 **(Work in progress)**
 
-This is based on the QuantStart [tutorial](http://www.quantstart.com/articles/Event-Driven-Backtesting-with-Python-Part-I/) tutorials and the [book](http://www.quantstart.com/successful-algorithmic-trading-ebook/). The vanilla version had a lot of bugs and didn't even work at all. I have fixed the problems and added some simplifications. 
+This is based on the QuantStart [tutorial](http://www.quantstart.com/articles/Event-Driven-Backtesting-with-Python-Part-I/) tutorials and the [book](http://www.quantstart.com/successful-algorithmic-trading-ebook/). The vanilla version had a lot of bugs and didn't even work at all. I have fixed the problems and added some simplifications. This backtester is currently for US equity only.
 
 Simplifications:
 * SignalsEvents are removed. The Strategy now directly sends OrderEvents to the Broker.

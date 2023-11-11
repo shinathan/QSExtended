@@ -1,6 +1,4 @@
-import datetime
-import queue
-from event import FillEvent, OrderEvent
+from backtester.event import FillEvent, OrderEvent
 
 
 class Broker:
@@ -28,9 +26,7 @@ class SimulatedBroker(Broker):
 
     def execute_order(self, event):
         if isinstance(event, OrderEvent):
-            current_price = self.data_handler.get_latest_bars(event.symbol, N=1).iloc[
-                -1
-            ]["close"]
+            current_price = self.data_handler.get_latest_bars(event.symbol, N=1).iloc[-1]["close"]
             # TODO: option to get next open instead. That is essentially a 1-bar delay.
 
             fill_event = FillEvent(
