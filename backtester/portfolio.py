@@ -63,8 +63,10 @@ class StandardPortfolio(Portfolio):
         if len(self.data_handler.get_loaded_symbols()) > 0:
             # Update positions value if we have positions
             position_values = {
-                symbol: position * (self.data_handler.get_latest_bars(symbol, N=1)["close"].values[0])
+                symbol: position
+                * (self.data_handler.get_latest_bars(symbol, N=1)["close"].values[0])
                 for (symbol, position) in self.current_positions.items()
+                if position != 0
             }
             self._current_positions_value = sum(position_values.values())
         else:
